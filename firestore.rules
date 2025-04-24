@@ -1,0 +1,66 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && 
+        (request.auth.token.email == 'admin@iitm.ac.in' || 
+         exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // Public resources - allow read access to everyone
+    match /subjects/{subjectId} {
+      allow read: if true; // Public read access
+      allow write: if isAdmin();
+    }
+    
+    match /resources/{resourceId} {
+      allow read: if true; // Public read access
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && 
+        (resource.data.createdBy == request.auth.token.email || isAdmin());
+      allow delete: if isAdmin() || 
+        (isSignedIn() && resource.data.createdBy == request.auth.token.email);
+    }
+    
+    // Comments - public read, authenticated write
+    match /comments/{commentId} {
+      allow read: if true; // Public read access
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && 
+        (resource.data.createdBy == request.auth.token.email || isAdmin());
+    }
+    
+    // Users collection - authenticated access only
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+    }
+    
+    // Notifications - public read for global notifications, authenticated for personal
+    match /notifications/{notificationId} {
+      // Allow public read for global notifications (userId is null)
+      allow read: if resource.data.userId == null || 
+                   (isSignedIn() && resource.data.userId == request.auth.token.email);
+      
+      // Only admin can create new notifications
+      allow create: if isAdmin();
+      
+      // Users can update notifications to mark as read or add replies
+      allow update: if isSignedIn();
+      
+      // Only admin can delete notifications
+      allow delete: if isAdmin();
+    }
+    
+    // Default rule - require authentication for everything else
+    match /{document=**} {
+      allow read, write: if isSignedIn();
+    }
+  }
+}

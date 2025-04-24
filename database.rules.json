@@ -1,0 +1,33 @@
+{
+  "rules": {
+    // Default rule - authenticated users can read
+    ".read": "auth != null",
+
+    // Only admin can write to the root
+    ".write": "auth != null && (auth.token.email == 'admin@iitm.ac.in')",
+
+    // Users collection
+    "users": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && (auth.uid == $uid || auth.token.email == 'admin@iitm.ac.in')"
+      }
+    },
+
+    // Notifications collection
+    "notifications": {
+      ".read": "auth != null",
+      ".write": "auth != null && auth.token.email == 'admin@iitm.ac.in'",
+
+      "$notificationId": {
+        // Allow all authenticated users to update read status and replies
+        "read": {
+          ".write": "auth != null"
+        },
+        "replies": {
+          ".write": "auth != null"
+        }
+      }
+    }
+  }
+}
