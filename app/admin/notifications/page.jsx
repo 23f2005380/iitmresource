@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { collection, getDocs, query, where } from "firebase/firestore"
-import { getDatabase, ref, set } from "firebase/database"
+import { getDatabase, ref, update } from "firebase/database"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { db, auth } from "../../firebase"
@@ -182,6 +182,9 @@ export default function AdminNotificationsPage() {
       // Generate a unique notification ID
       const notificationId = Date.now().toString()
 
+      // Create a batch of updates to perform atomically
+      const updates = {}
+
       if (sendToAll) {
         // Send to all users
         const allNotification = {
@@ -193,8 +196,7 @@ export default function AdminNotificationsPage() {
         for (const user of allUsers) {
           if (user.email) {
             const userEmail = user.email.replace(/\./g, ",")
-            const userNotificationRef = ref(rtdb, `notifications/${userEmail}/${notificationId}`)
-            await set(userNotificationRef, allNotification)
+            updates[`notifications/${userEmail}/${notificationId}`] = allNotification
           }
         }
       } else {
@@ -208,11 +210,13 @@ export default function AdminNotificationsPage() {
         for (const user of selectedUsers) {
           if (user.email) {
             const userEmail = user.email.replace(/\./g, ",")
-            const userNotificationRef = ref(rtdb, `notifications/${userEmail}/${notificationId}`)
-            await set(userNotificationRef, selectedNotification)
+            updates[`notifications/${userEmail}/${notificationId}`] = selectedNotification
           }
         }
       }
+
+      // Perform all updates in a single operation
+      await update(ref(rtdb), updates)
 
       alert(
         sendToAll

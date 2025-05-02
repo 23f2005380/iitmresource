@@ -5,12 +5,12 @@ import { getDatabase, ref, onValue, off, push, update } from "firebase/database"
 import { doc, getDoc } from "firebase/firestore"
 import { Bell } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { db, auth } from "../app/firebase"
+import { db, auth } from "@/lib/firebase"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 
-export function NotificationSystem() {
+export function FloatingNotification() {
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -189,11 +189,16 @@ export function NotificationSystem() {
   }
 
   return (
-    <div className="relative z-50" ref={notificationRef}>
-      <Button variant="ghost" size="icon" className="relative" onClick={() => setShowNotifications(!showNotifications)}>
+    <div className="fixed bottom-6 right-6 z-50" ref={notificationRef}>
+      <Button
+        variant="default"
+        size="icon"
+        className="relative h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+        onClick={() => setShowNotifications(!showNotifications)}
+      >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
             {unreadCount}
           </span>
         )}
@@ -205,7 +210,7 @@ export function NotificationSystem() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-lg border overflow-hidden"
+            className="absolute right-0 bottom-16 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-lg border overflow-hidden"
           >
             <div className="p-3 border-b flex items-center justify-between">
               <h3 className="font-medium">Notifications</h3>

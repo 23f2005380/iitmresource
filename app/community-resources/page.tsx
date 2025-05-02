@@ -293,6 +293,25 @@ export default function CommunityResourcesPage() {
     return isCreator || isAdminEmail
   }
 
+  function showText(data, name) {
+  console.log(data.split(" "), " ", data.length, " " , data.split(" ").slice(0,5))
+  let words = 0
+  let character = 0
+    if (name == "description") {
+      words = 20
+      character = 100
+      }
+      else if (name == "title") {
+      words = 10
+      character = 50
+      }
+    if(data.split(" ").length > words && data.length > character) {
+      return data.split(" ").slice(0,20).join(" ") + "..."
+    }
+    else {
+    return data
+    }
+  }
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-50 to-white dark:from-gray-900 dark:to-gray-950 relative overflow-hidden">
       {/* Background blur elements */}
@@ -445,7 +464,7 @@ export default function CommunityResourcesPage() {
                 <Card key={resource.id} className="hover-scale overflow-hidden h-full flex flex-col transition-colors">
                   <CardHeader>
                     <div className="flex justify-between items-start gap-2">
-                      <CardTitle className="font-display">{resource.title}</CardTitle>
+                      <CardTitle className="font-display">{showText(resource.title, "title")}</CardTitle>
                       {getResourceTypeIcon(resource.type)}
                     </div>
                     <CardDescription className="flex justify-between items-center">
@@ -483,7 +502,9 @@ export default function CommunityResourcesPage() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="flex-grow">
-                    <p className="text-sm text-muted-foreground font-body">{resource.description}</p>
+                    <p className="text-sm text-muted-foreground font-body">
+                    {showText(resource.description, "description")}
+                    </p>
                   </CardContent>
                   <CardFooter className="border-t pt-4">
                     {resource.type === "text" ? (

@@ -62,7 +62,8 @@
     "firebase": "latest",
     "framer-motion": "latest",
     "lodash.debounce": "latest",
-    "canvas-confetti": "latest"
+    "canvas-confetti": "latest",
+    "react-firebase-hooks": "latest"
   },
   "devDependencies": {
     "@types/node": "^22",

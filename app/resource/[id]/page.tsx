@@ -11,6 +11,7 @@ import {
   AlertTriangle,
   ThumbsUp,
   MessageSquare,
+  Edit,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -53,6 +54,50 @@ interface Comment {
   createdAt: any
 }
 
+// Add this function before the ResourcePage component
+
+const linkifyText = (text: string | undefined) => {
+  if (!text) return null
+
+  // Regular expression to match URLs
+  const urlRegex = /(https?:\/\/[^\s]+)/g
+
+  // Split the text by URLs
+  const parts = text.split(urlRegex)
+
+  // Find all URLs in the text
+  const urls = text.match(urlRegex) || []
+  console.log(parts)
+  console.log(urls)
+  // Combine parts and URLs
+  const result = []
+  for (let i = 0; i < parts.length; i++) {
+    // Add the text part
+     if (urls.includes(parts[i])) {
+      const url = urls[i - Math.floor(i / 2)]
+      result.push(
+        <a
+          key={`link-${i}`}
+          href={parts[i]}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-primary hover:underline"
+        >
+          {parts[i]}
+        </a>,
+      )
+    }
+  
+    else if (parts[i]) {
+      result.push(<span key={`text-${i}`}>{parts[i]}</span>)
+    }
+}
+    // Add the URL part (if there is one)
+    
+
+  return result
+}
+
 export default function ResourcePage({ params }: { params: { id: string } }) {
   const [resource, setResource] = useState<Resource | null>(null)
   const [loading, setLoading] = useState(true)
@@ -63,6 +108,7 @@ export default function ResourcePage({ params }: { params: { id: string } }) {
   const [newComment, setNewComment] = useState("")
   const [isAddingComment, setIsAddingComment] = useState(false)
   const { toast } = useToast()
+  const [isResourceCreator, setIsResourceCreator] = useState(false)
 
   // Function to extract YouTube video ID from various URL formats
   const getYoutubeEmbedUrl = useCallback((url: string) => {
@@ -75,7 +121,7 @@ export default function ResourcePage({ params }: { params: { id: string } }) {
     const watchRegex = /(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/
     const watchMatch = url.match(watchRegex)
 
-    // YouTube playlist URL: https://www.youtube.com/playlist?list=PLAYLIST_ID
+    // YouTube playlist URL: https://www.youtube.com/playlist\?list=PLAYLIST_ID
     const playlistRegex = /youtube\.com\/playlist\?list=([^&?/]+)/
     const playlistMatch = url.match(playlistRegex)
 
@@ -90,25 +136,25 @@ export default function ResourcePage({ params }: { params: { id: string } }) {
     if (watchMatch) {
       videoId = watchMatch[1]
       return {
-        url: `https://www.youtube-nocookie.com/embed/${videoId}`,
+        url: `https://www.youtube.com/embed/${videoId}?origin=${window.location.origin}`,
         type: "video",
       }
     } else if (playlistMatch) {
       const playlistId = playlistMatch[1]
       return {
-        url: `https://www.youtube-nocookie.com/embed/videoseries?list=${playlistId}`,
+        url: `https://www.youtube.com/embed/videoseries?list=${playlistId}&origin=${window.location.origin}`,
         type: "playlist",
       }
     } else if (embedMatch) {
       videoId = embedMatch[1]
       return {
-        url: `https://www.youtube-nocookie.com/embed/${videoId}`,
+        url: `https://www.youtube.com/embed/${videoId}?origin=${window.location.origin}`,
         type: "video",
       }
     } else if (shortMatch) {
       videoId = shortMatch[1]
       return {
-        url: `https://www.youtube-nocookie.com/embed/${videoId}`,
+        url: `https://www.youtube.com/embed/${videoId}?origin=${window.location.origin}`,
         type: "video",
       }
     }
@@ -126,6 +172,11 @@ export default function ResourcePage({ params }: { params: { id: string } }) {
 
         if (resourceSnapshot.exists()) {
           const resourceData = resourceSnapshot.data()
+
+          // Check if current user is the creator of this resource
+          if (auth.currentUser && resourceData.createdBy === auth.currentUser.email) {
+            setIsResourceCreator(true)
+          }
 
           // Fetch subject name if subjectId exists
           let subjectName = ""
@@ -329,6 +380,14 @@ export default function ResourcePage({ params }: { params: { id: string } }) {
     }
   }
 
+  // Function to add links to text
+  // const linkifyText = (text: string) => {
+  //   const urlRegex = /(https?:\/\/[^\s]+)/g;
+  //   return text.replace(urlRegex, (url) => {
+  //     return '<a href="' + url + '" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">' + url + '</a>';
+  //   });
+  // };
+
   const renderResourceContent = (resource: Resource) => {
     switch (resource.type) {
       case "youtube":
@@ -343,6 +402,7 @@ export default function ResourcePage({ params }: { params: { id: string } }) {
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   title={resource.title}
                   onError={handleEmbedError}
+                  referrerPolicy="origin"
                 ></iframe>
               </div>
             ) : (
@@ -490,7 +550,7 @@ export default function ResourcePage({ params }: { params: { id: string } }) {
       case "text":
         return (
           <div className="prose prose-sky max-w-none dark:prose-invert">
-            <div className="whitespace-pre-wrap">{resource.content}</div>
+            <div className="whitespace-pre-wrap">{linkifyText(resource.content)}</div>
             {(resource.url || (resource.urls && resource.urls.length > 0)) && (
               <div className="mt-8">
                 <h3>Related Links</h3>
@@ -605,6 +665,16 @@ export default function ResourcePage({ params }: { params: { id: string } }) {
                 {getResourceTypeLabel(resource.type)}
               </Badge>
             </div>
+            {isResourceCreator && (
+              <div className="flex items-center gap-2 mt-2">
+                <Link href={`/resource/edit/${resource.id}`}>
+                  <Button variant="outline" size="sm" className="flex items-center gap-1">
+                    <Edit className="h-3.5 w-3.5" />
+                    Edit
+                  </Button>
+                </Link>
+              </div>
+            )}
             <CardDescription>
               <div className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
                 <span>Shared by {resource.creatorName || "User"}</span>

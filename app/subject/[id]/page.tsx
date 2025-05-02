@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { RecentContributors } from "@/components/recent-contributors"
 
 interface Subject {
   id: string
@@ -281,7 +282,10 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
             </form>
           </div>
 
-          <p className="text-muted-foreground mb-6">{subject.description}</p>
+          <p className="text-muted-foreground mb-4">{subject.description}</p>
+
+          {/* Recent Contributors */}
+          <RecentContributors subjectId={subject.id} />
 
           {/* Search Results Section */}
           {showSearchResults && (
@@ -352,7 +356,7 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
               </h2>
               <Link href={`/subject/${subject.id}/general`}>
                 <Card className="hover-scale transition-colors">
-                  <CardHeader className="bg-gradient-to-r from-sky-100 to-sky-50 dark:from-sky-900 dark:to-sky-800">
+                  <CardHeader className="bg-gradient-to-r from-sky-100 to-sky-50 dark:from-sky-900 dark:to-sky-800 py-3 px-4">
                     <CardTitle className="text-lg flex items-center justify-between">
                       <span>General Resources</span>
                       {!loadingCounts && (
@@ -362,13 +366,13 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
                       )}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-4">
+                  <CardContent className="pt-3 pb-2 px-4">
                     <p className="text-sm text-muted-foreground">
                       View resources that apply to the entire subject, not specific to any week
                     </p>
                   </CardContent>
-                  <CardFooter>
-                    <Button variant="ghost" size="sm" className="text-primary">
+                  <CardFooter className="py-2 px-4">
+                    <Button variant="ghost" size="sm" className="text-primary px-0 hover:bg-transparent">
                       Browse Resources
                     </Button>
                   </CardFooter>
@@ -385,8 +389,8 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {Array.from({ length: subject.weeks }, (_, i) => i + 1).map((weekNum) => (
               <Link href={`/subject/${subject.id}/week/${weekNum}`} key={weekNum}>
-                <Card className="hover-scale h-[180px] flex flex-col transition-colors">
-                  <CardHeader className="bg-gradient-to-r from-sky-100 to-sky-50 dark:from-sky-900 dark:to-sky-800">
+                <Card className="hover-scale h-full flex flex-col transition-colors">
+                  <CardHeader className="bg-gradient-to-r from-sky-100 to-sky-50 dark:from-sky-900 dark:to-sky-800 py-3 px-4">
                     <CardTitle className="text-lg flex items-center justify-between">
                       <span>Week {weekNum}</span>
                       {!loadingCounts && (
@@ -396,11 +400,11 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
                       )}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-4 flex-grow">
+                  <CardContent className="pt-3 pb-2 px-4 flex-grow">
                     <p className="text-sm text-muted-foreground">View resources shared for Week {weekNum}</p>
                   </CardContent>
-                  <CardFooter className="mt-auto">
-                    <Button variant="ghost" size="sm" className="text-primary">
+                  <CardFooter className="mt-auto py-2 px-4">
+                    <Button variant="ghost" size="sm" className="text-primary px-0 hover:bg-transparent">
                       Browse Resources
                     </Button>
                   </CardFooter>

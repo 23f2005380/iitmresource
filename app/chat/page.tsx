@@ -15,7 +15,18 @@ import {
   limit,
   startAfter,
 } from "firebase/firestore"
-import { Send, MessageSquare, Users, ChevronRight, Menu, Loader2, Sparkles, ArrowUp } from "lucide-react"
+import {
+  Send,
+  MessageSquare,
+  Users,
+  ChevronRight,
+  Menu,
+  Loader2,
+  Sparkles,
+  ArrowUp,
+  Trash2,
+  MoreVertical,
+} from "lucide-react"
 import { useRouter } from "next/navigation"
 import { AnimatePresence, motion } from "framer-motion"
 
@@ -29,6 +40,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import { Badge } from "@/components/ui/badge"
+import { deleteDoc, doc as firestoreDoc } from "firebase/firestore"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 interface Message {
   id: string
@@ -630,6 +643,33 @@ export default function ChatPage() {
     setMessageInput(e.target.value)
   }, [])
 
+  const handleDeleteMessage = async (messageId: string) => {
+    if (!auth.currentUser) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to delete messages",
+        variant: "destructive",
+      })
+      return
+    }
+
+    try {
+      await deleteDoc(firestoreDoc(db, "chats", messageId))
+
+      toast({
+        title: "Message deleted",
+        description: "Your message has been deleted",
+      })
+    } catch (error) {
+      console.error("Error deleting message:", error)
+      toast({
+        title: "Error deleting message",
+        description: "Please try again",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-50 to-white dark:from-gray-900 dark:to-gray-950 relative overflow-hidden">
       {/* Background elements */}
@@ -738,6 +778,24 @@ export default function ChatPage() {
                                     {formatTimestamp(msg.timestamp)}
                                   </span>
                                   <span className="text-sm font-medium">{msg.senderName}</span>
+                                  {isCurrentUser(msg.sender) && (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6 p-0">
+                                          <MoreVertical className="h-3.5 w-3.5" />
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem
+                                          className="text-destructive focus:text-destructive"
+                                          onClick={() => handleDeleteMessage(msg.id)}
+                                        >
+                                          <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                          Delete
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  )}
                                 </div>
                                 <div
                                   className={`rounded-2xl p-3 shadow-sm ${
@@ -956,6 +1014,24 @@ export default function ChatPage() {
                                         {formatTimestamp(msg.timestamp)}
                                       </span>
                                       <span className="text-sm font-medium">{msg.senderName}</span>
+                                      {isCurrentUser(msg.sender) && (
+                                        <DropdownMenu>
+                                          <DropdownMenuTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-6 w-6 p-0">
+                                              <MoreVertical className="h-3.5 w-3.5" />
+                                            </Button>
+                                          </DropdownMenuTrigger>
+                                          <DropdownMenuContent align="end">
+                                            <DropdownMenuItem
+                                              className="text-destructive focus:text-destructive"
+                                              onClick={() => handleDeleteMessage(msg.id)}
+                                            >
+                                              <Trash2 className="h-3.5 w-3.5 mr-2" />
+                                              Delete
+                                            </DropdownMenuItem>
+                                          </DropdownMenuContent>
+                                        </DropdownMenu>
+                                      )}
                                     </div>
                                     <div
                                       className={`rounded-2xl p-3 shadow-sm ${

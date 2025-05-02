@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { getDatabase, ref, onValue, update } from "firebase/database"
+import { getDatabase, ref, update, get } from "firebase/database"
 import { collection, getDocs, query, where } from "firebase/firestore"
 import { useRouter } from "next/navigation"
 import { ArrowLeft, Check, CheckCheck, Filter, Loader2, MessageSquare, RefreshCw, Search } from "lucide-react"
@@ -98,77 +98,72 @@ export default function NotificationRepliesPage() {
       const rtdb = getDatabase()
       const notificationsRef = ref(rtdb, "notifications")
 
-      onValue(
-        notificationsRef,
-        async (snapshot) => {
-          if (!snapshot.exists()) {
-            setNotifications([])
-            setLoading(false)
-            return
+      // First get all notifications
+      const notificationsSnapshot = await get(notificationsRef)
+
+      if (!notificationsSnapshot.exists()) {
+        setNotifications([])
+        setLoading(false)
+        return
+      }
+
+      const notificationsData = notificationsSnapshot.val()
+      const allNotifications: NotificationWithReplies[] = []
+
+      // Get all notifications from all users
+      for (const userEmail in notificationsData) {
+        const userNotifications = notificationsData[userEmail]
+
+        for (const notificationId in userNotifications) {
+          const notification = userNotifications[notificationId]
+
+          // Check if this notification is already in our list
+          const existingIndex = allNotifications.findIndex((n) => n.id === notificationId)
+
+          if (existingIndex === -1) {
+            // Add new notification
+            allNotifications.push({
+              id: notificationId,
+              ...notification,
+              replies: [],
+            })
           }
+        }
+      }
 
-          const notificationsData = snapshot.val()
-          const allNotifications: NotificationWithReplies[] = []
+      // Fetch replies for each notification
+      const repliesRef = ref(rtdb, "notificationReplies")
+      const repliesSnapshot = await get(repliesRef)
 
-          // Get all notifications from all users
-          for (const userEmail in notificationsData) {
-            const userNotifications = notificationsData[userEmail]
+      if (repliesSnapshot.exists()) {
+        const repliesData = repliesSnapshot.val()
 
-            for (const notificationId in userNotifications) {
-              const notification = userNotifications[notificationId]
+        for (const notificationId in repliesData) {
+          const notificationIndex = allNotifications.findIndex((n) => n.id === notificationId)
 
-              // Check if this notification is already in our list
-              const existingIndex = allNotifications.findIndex((n) => n.id === notificationId)
+          if (notificationIndex !== -1) {
+            const replyList: Reply[] = []
 
-              if (existingIndex === -1) {
-                // Add new notification
-                allNotifications.push({
-                  id: notificationId,
-                  ...notification,
-                  replies: [],
-                })
-              }
+            for (const replyId in repliesData[notificationId]) {
+              replyList.push({
+                id: replyId,
+                ...repliesData[notificationId][replyId],
+              })
             }
+
+            // Sort replies by timestamp (newest first)
+            replyList.sort((a, b) => b.timestamp - a.timestamp)
+
+            allNotifications[notificationIndex].replies = replyList
           }
+        }
+      }
 
-          // Fetch replies for each notification
-          const repliesRef = ref(rtdb, "notificationReplies")
-          const repliesSnapshot = await new Promise<any>((resolve) => {
-            onValue(repliesRef, resolve, { onlyOnce: true })
-          })
+      // Sort notifications by timestamp (newest first)
+      allNotifications.sort((a, b) => b.timestamp - a.timestamp)
 
-          if (repliesSnapshot.exists()) {
-            const repliesData = repliesSnapshot.val()
-
-            for (const notificationId in repliesData) {
-              const notificationIndex = allNotifications.findIndex((n) => n.id === notificationId)
-
-              if (notificationIndex !== -1) {
-                const replyList: Reply[] = []
-
-                for (const replyId in repliesData[notificationId]) {
-                  replyList.push({
-                    id: replyId,
-                    ...repliesData[notificationId][replyId],
-                  })
-                }
-
-                // Sort replies by timestamp (newest first)
-                replyList.sort((a, b) => b.timestamp - a.timestamp)
-
-                allNotifications[notificationIndex].replies = replyList
-              }
-            }
-          }
-
-          // Sort notifications by timestamp (newest first)
-          allNotifications.sort((a, b) => b.timestamp - a.timestamp)
-
-          setNotifications(allNotifications)
-          setLoading(false)
-        },
-        { onlyOnce: true },
-      )
+      setNotifications(allNotifications)
+      setLoading(false)
     } catch (error) {
       console.error("Error fetching notifications:", error)
       toast({

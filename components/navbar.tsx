@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Book, Home, LogIn, LogOut, Menu, MessageSquare, Trophy, User, X } from "lucide-react"
+import { Book, Home, LogIn, LogOut, Menu, MessageSquare, Trophy, User, X, Clock } from "lucide-react"
 import { signOut } from "firebase/auth"
 import { useEffect, useState } from "react"
 import { doc, getDoc } from "firebase/firestore"
@@ -82,6 +82,12 @@ export function Navbar() {
       label: "Leaderboard",
       icon: <Trophy className="h-4 w-4" />,
       active: pathname === "/leaderboard",
+    },
+    {
+      href: "/study-tracker",
+      label: "Study Tracker",
+      icon: <Clock className="h-4 w-4" />,
+      active: pathname === "/study-tracker",
     },
     ...(isAdmin
       ? [
