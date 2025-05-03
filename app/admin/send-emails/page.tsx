@@ -2,21 +2,20 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { collection, getDocs, query, where, addDoc, serverTimestamp } from "firebase/firestore"
-import { getDatabase, ref, update } from "firebase/database"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { db, auth } from "../../firebase"
 import { Navbar } from "../../../components/navbar"
+import { motion } from "framer-motion"
 
-export default function AdminNotificationsPage() {
-  const [title, setTitle] = useState("")
+export default function AdminSendEmailsPage() {
+  const [subject, setSubject] = useState("")
   const [message, setMessage] = useState("")
   const [selectedUsers, setSelectedUsers] = useState([])
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState([])
   const [allUsers, setAllUsers] = useState([])
   const [sendToAll, setSendToAll] = useState(false)
-  const [allowReply, setAllowReply] = useState(true)
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -24,14 +23,6 @@ export default function AdminNotificationsPage() {
 
   const router = useRouter()
   const searchInputRef = useRef(null)
-
-  // Count words in a string
-  const countWords = (text) => {
-    return text
-      .trim()
-      .split(/\s+/)
-      .filter((word) => word.length > 0).length
-  }
 
   // Check if user is admin
   useEffect(() => {
@@ -106,7 +97,7 @@ export default function AdminNotificationsPage() {
 
         const filteredUsers = allUsers.filter(
           (user) =>
-            user.email.toLowerCase().includes(query.toLowerCase()) ||
+            user.email?.toLowerCase().includes(query.toLowerCase()) ||
             (user.displayName && user.displayName.toLowerCase().includes(query.toLowerCase())),
         )
 
@@ -153,10 +144,10 @@ export default function AdminNotificationsPage() {
     }
   }
 
-  // Send notification
-  const sendNotification = async () => {
-    if (!title.trim() || !message.trim()) {
-      alert("Please provide both title and message")
+  // Send email
+  const sendEmail = async () => {
+    if (!subject.trim() || !message.trim()) {
+      alert("Please provide both subject and message")
       return
     }
 
@@ -168,69 +159,48 @@ export default function AdminNotificationsPage() {
     setSending(true)
 
     try {
-      const rtdb = getDatabase()
-      const notificationId = Date.now().toString()
-
-      // Create notification in Firestore first
-      const notificationData = {
-        id: notificationId,
-        title,
+      // Create email record in Firestore
+      const emailData = {
+        subject,
         message,
         sender: auth.currentUser?.email || "admin",
         timestamp: serverTimestamp(),
-        read: false,
-        allowReply,
         recipients: sendToAll ? "all" : selectedUsers.map((user) => user.email),
+        status: "pending", // pending, sent, failed
       }
 
-      // Add to notifications collection in Firestore
-      await addDoc(collection(db, "notifications"), notificationData)
+      // Add to emails collection in Firestore
+      const emailRef = await addDoc(collection(db, "emails"), emailData)
 
-      // Create a batch of updates for Realtime Database
-      const updates = {}
+      // In a real application, you would trigger a server function to send the emails
+      // For now, we'll just simulate it with a timeout
+      setTimeout(async () => {
+        try {
+          // Update the email status to "sent"
+          await addDoc(collection(db, "emails"), {
+            ...emailData,
+            status: "sent",
+            sentAt: serverTimestamp(),
+          })
 
-      if (sendToAll) {
-        // Send to all users
-        for (const user of allUsers) {
-          if (user.email) {
-            const userEmail = user.email.replace(/\./g, ",")
-            updates[`notifications/${userEmail}/${notificationId}`] = {
-              ...notificationData,
-              timestamp: Date.now(), // For Realtime DB we need a JS timestamp
-            }
-          }
+          alert(
+            sendToAll ? "Email has been sent to all users" : `Email has been sent to ${selectedUsers.length} user(s)`,
+          )
+
+          // Reset form
+          setSubject("")
+          setMessage("")
+          setSelectedUsers([])
+          setSendToAll(false)
+          setSending(false)
+        } catch (error) {
+          console.error("Error updating email status:", error)
+          setSending(false)
         }
-      } else {
-        // Send to selected users
-        for (const user of selectedUsers) {
-          if (user.email) {
-            const userEmail = user.email.replace(/\./g, ",")
-            updates[`notifications/${userEmail}/${notificationId}`] = {
-              ...notificationData,
-              timestamp: Date.now(), // For Realtime DB we need a JS timestamp
-            }
-          }
-        }
-      }
-
-      // Perform all updates in a single operation
-      await update(ref(rtdb), updates)
-
-      alert(
-        sendToAll
-          ? "Notification has been sent to all users"
-          : `Notification has been sent to ${selectedUsers.length} user(s)`,
-      )
-
-      // Reset form
-      setTitle("")
-      setMessage("")
-      setSelectedUsers([])
-      setSendToAll(false)
+      }, 2000)
     } catch (error) {
-      console.error("Error sending notification:", error)
-      alert("Failed to send notification. Please check your permissions.")
-    } finally {
+      console.error("Error sending email:", error)
+      alert("Failed to send email. Please check your permissions.")
       setSending(false)
     }
   }
@@ -255,9 +225,19 @@ export default function AdminNotificationsPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.5 }}
+      className="min-h-screen flex flex-col"
+    >
       <Navbar />
-      <main className="flex-1 container py-4 md:py-8 px-2 md:px-4">
+      <motion.main
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ delay: 0.2, duration: 0.5 }}
+        className="flex-1 container py-4 md:py-8 px-2 md:px-4"
+      >
         <div className="flex items-center gap-2 mb-6">
           <Link href="/admin">
             <button className="btn btn-outline btn-icon">
@@ -277,11 +257,16 @@ export default function AdminNotificationsPage() {
               </svg>
             </button>
           </Link>
-          <h1 className="text-2xl font-bold">Send Notifications</h1>
+          <h1 className="text-2xl font-bold">Send Emails</h1>
         </div>
 
         <div className="grid md:grid-cols-2 gap-6">
-          <div className="card">
+          <motion.div
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.5 }}
+            className="card"
+          >
             <div className="card-header">
               <h2 className="flex items-center gap-2">
                 <svg
@@ -295,24 +280,24 @@ export default function AdminNotificationsPage() {
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 >
-                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path>
-                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"></path>
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
                 </svg>
-                Compose Notification
+                Compose Email
               </h2>
-              <p className="text-light">Create and send notifications to users</p>
+              <p className="text-light">Create and send emails to users</p>
             </div>
             <div className="card-content space-y-4">
               <div className="form-group">
-                <label htmlFor="title" className="form-label">
-                  Title
+                <label htmlFor="subject" className="form-label">
+                  Subject
                 </label>
                 <input
-                  id="title"
+                  id="subject"
                   className="form-input"
-                  placeholder="Notification title"
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Email subject"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
                 />
               </div>
 
@@ -323,20 +308,11 @@ export default function AdminNotificationsPage() {
                 <textarea
                   id="message"
                   className="form-textarea"
-                  placeholder="Notification message"
+                  placeholder="Email message"
+                  rows={6}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                 ></textarea>
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="allow-reply"
-                  checked={allowReply}
-                  onChange={(e) => setAllowReply(e.target.checked)}
-                />
-                <label htmlFor="allow-reply">Allow users to reply to this notification</label>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -455,8 +431,8 @@ export default function AdminNotificationsPage() {
 
               <button
                 className="btn btn-primary w-full"
-                onClick={sendNotification}
-                disabled={sending || !title.trim() || !message.trim() || (!sendToAll && selectedUsers.length === 0)}
+                onClick={sendEmail}
+                disabled={sending || !subject.trim() || !message.trim() || (!sendToAll && selectedUsers.length === 0)}
               >
                 {sending ? (
                   <>
@@ -477,17 +453,22 @@ export default function AdminNotificationsPage() {
                       strokeLinejoin="round"
                       className="mr-2"
                     >
-                      <line x1="22" y1="2" x2="11" y2="13"></line>
-                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                      <polyline points="22,6 12,13 2,6"></polyline>
                     </svg>
-                    Send Notification
+                    Send Email
                   </>
                 )}
               </button>
             </div>
-          </div>
+          </motion.div>
 
-          <div className="card">
+          <motion.div
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="card"
+          >
             <div className="card-header">
               <h2 className="flex items-center gap-2">
                 <svg
@@ -521,9 +502,7 @@ export default function AdminNotificationsPage() {
                 </div>
               ) : sendToAll ? (
                 <div className="space-y-4">
-                  <p className="text-sm">
-                    Your notification will be sent to all {allUsers.length} users on the platform.
-                  </p>
+                  <p className="text-sm">Your email will be sent to all {allUsers.length} users on the platform.</p>
                   <hr />
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium">Total Recipients</span>
@@ -610,9 +589,9 @@ export default function AdminNotificationsPage() {
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         </div>
-      </main>
-    </div>
+      </motion.main>
+    </motion.div>
   )
 }

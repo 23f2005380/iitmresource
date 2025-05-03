@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { getDatabase, ref, onValue, off, push, update } from "firebase/database"
-import { doc, getDoc } from "firebase/firestore"
+import { getDatabase, ref, onValue, off, push, update, get } from "firebase/database"
+import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore"
 import { Bell } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { db, auth } from "../app/firebase"
@@ -17,6 +17,7 @@ export function NotificationSystem() {
   const [replyContent, setReplyContent] = useState("")
   const [replyingTo, setReplyingTo] = useState(null)
   const [replySending, setReplySending] = useState(false)
+  const [loading, setLoading] = useState(true)
   const notificationRef = useRef(null)
 
   // Count words in a string
@@ -46,61 +47,152 @@ export function NotificationSystem() {
     }
   }, [])
 
+  // Load notifications from both Firestore and Realtime Database
   useEffect(() => {
     const user = auth.currentUser
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
 
-    const rtdb = getDatabase()
-    const userNotificationsRef = ref(rtdb, `notifications/${user.email?.replace(/\./g, ",") || "anonymous"}`)
-
-    const handleNotifications = (snapshot) => {
+    const loadNotifications = async () => {
       try {
-        if (!snapshot.exists()) return
+        setLoading(true)
 
-        const notificationsData = snapshot.val()
+        // First try to get notifications from Realtime Database
+        const rtdb = getDatabase()
+        const userEmail = user.email?.replace(/\./g, ",") || "anonymous"
+        const rtdbNotificationsRef = ref(rtdb, `notifications/${userEmail}`)
+
+        // Get notifications from Realtime Database
+        const rtdbSnapshot = await get(rtdbNotificationsRef)
         const notificationsArray = []
-        let unread = 0
 
-        for (const id in notificationsData) {
-          const notification = {
-            id,
-            ...notificationsData[id],
+        if (rtdbSnapshot.exists()) {
+          const rtdbNotifications = rtdbSnapshot.val()
+
+          for (const id in rtdbNotifications) {
+            notificationsArray.push({
+              id,
+              ...rtdbNotifications[id],
+              source: "rtdb",
+            })
           }
-          notificationsArray.push(notification)
-          if (!notification.read) unread++
         }
 
+        // Also get notifications from Firestore
+        const firestoreNotificationsRef = collection(db, "notifications")
+        const q = query(firestoreNotificationsRef, where("recipients", "array-contains", user.email))
+
+        const firestoreSnapshot = await getDocs(q)
+
+        firestoreSnapshot.forEach((doc) => {
+          const notification = doc.data()
+          // Check if this notification is already in the array (from RTDB)
+          const exists = notificationsArray.some((n) => n.id === notification.id)
+
+          if (!exists) {
+            notificationsArray.push({
+              ...notification,
+              source: "firestore",
+            })
+          }
+        })
+
+        // Also get "all" notifications
+        const allNotificationsQuery = query(firestoreNotificationsRef, where("recipients", "==", "all"))
+
+        const allNotificationsSnapshot = await getDocs(allNotificationsQuery)
+
+        allNotificationsSnapshot.forEach((doc) => {
+          const notification = doc.data()
+          // Check if this notification is already in the array
+          const exists = notificationsArray.some((n) => n.id === notification.id)
+
+          if (!exists) {
+            notificationsArray.push({
+              ...notification,
+              source: "firestore",
+            })
+          }
+        })
+
         // Sort by timestamp (newest first)
-        notificationsArray.sort((a, b) => b.timestamp - a.timestamp)
+        notificationsArray.sort((a, b) => {
+          const timestampA = a.timestamp?.seconds ? a.timestamp.seconds * 1000 : a.timestamp
+          const timestampB = b.timestamp?.seconds ? b.timestamp.seconds * 1000 : b.timestamp
+          return timestampB - timestampA
+        })
+
+        // Count unread notifications
+        const unread = notificationsArray.filter((n) => !n.read).length
 
         setNotifications(notificationsArray)
         setUnreadCount(unread)
+        setLoading(false)
+
+        // Set up real-time listener for RTDB
+        onValue(rtdbNotificationsRef, (snapshot) => {
+          if (snapshot.exists()) {
+            const rtdbNotifications = snapshot.val()
+            const updatedNotifications = []
+            let unreadCount = 0
+
+            for (const id in rtdbNotifications) {
+              const notification = {
+                id,
+                ...rtdbNotifications[id],
+                source: "rtdb",
+              }
+
+              updatedNotifications.push(notification)
+              if (!notification.read) unreadCount++
+            }
+
+            // Sort by timestamp (newest first)
+            updatedNotifications.sort((a, b) => b.timestamp - a.timestamp)
+
+            setNotifications(updatedNotifications)
+            setUnreadCount(unreadCount)
+          }
+        })
       } catch (error) {
-        console.error("Error processing notifications:", error)
+        console.error("Error loading notifications:", error)
+        setLoading(false)
       }
     }
 
-    onValue(userNotificationsRef, handleNotifications)
+    loadNotifications()
 
     return () => {
-      off(userNotificationsRef, "value", handleNotifications)
+      // Clean up RTDB listener
+      const rtdb = getDatabase()
+      const userEmail = user.email?.replace(/\./g, ",") || "anonymous"
+      const rtdbNotificationsRef = ref(rtdb, `notifications/${userEmail}`)
+      off(rtdbNotificationsRef)
     }
   }, [])
 
-  const markAsRead = async (notificationId) => {
+  const markAsRead = async (notificationId, source) => {
     try {
       const user = auth.currentUser
       if (!user) return
 
-      const rtdb = getDatabase()
-      const notificationRef = ref(
-        rtdb,
-        `notifications/${user.email?.replace(/\./g, ",") || "anonymous"}/${notificationId}`,
-      )
+      if (source === "rtdb") {
+        const rtdb = getDatabase()
+        const notificationRef = ref(
+          rtdb,
+          `notifications/${user.email?.replace(/\./g, ",") || "anonymous"}/${notificationId}`,
+        )
 
-      await update(notificationRef, {
-        read: true,
-      })
+        await update(notificationRef, {
+          read: true,
+        })
+      } else {
+        // For Firestore notifications, we would need to update the Firestore document
+        // This would require knowing the document ID, which we don't have here
+        // For now, we'll just update the local state
+      }
 
       // Update local state
       setNotifications((prev) =>
@@ -172,6 +264,15 @@ export function NotificationSystem() {
   }
 
   const formatTimestamp = (timestamp) => {
+    if (!timestamp) return "Unknown date"
+
+    // Handle Firestore timestamp
+    if (timestamp.seconds) {
+      const date = new Date(timestamp.seconds * 1000)
+      return date.toLocaleString()
+    }
+
+    // Handle regular JS timestamp
     const date = new Date(timestamp)
     return date.toLocaleString()
   }
@@ -228,7 +329,12 @@ export function NotificationSystem() {
             </div>
 
             <div className="custom-scrollbar" style={{ maxHeight: "70vh", overflowY: "auto" }}>
-              {notifications.length === 0 ? (
+              {loading ? (
+                <div className="p-4 text-center">
+                  <div className="loading-spinner-sm mx-auto mb-2"></div>
+                  <p className="text-sm text-muted-foreground">Loading notifications...</p>
+                </div>
+              ) : notifications.length === 0 ? (
                 <div className="p-4 text-center text-muted-foreground">
                   <div className="flex justify-center mb-2">
                     <Bell className="h-6 w-6 text-muted-foreground" />
@@ -251,7 +357,7 @@ export function NotificationSystem() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6"
-                                onClick={() => markAsRead(notification.id)}
+                                onClick={() => markAsRead(notification.id, notification.source)}
                               >
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"

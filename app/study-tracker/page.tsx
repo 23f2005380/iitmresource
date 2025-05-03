@@ -166,9 +166,7 @@ export default function StudyTrackerPage() {
       </div>
     )
   }
-const imageLoader = () => {
-  return 
-}
+  
   return (
   <div className="h-full">
   <div
@@ -214,22 +212,23 @@ const imageLoader = () => {
 
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden h-[calc(50%-12px)]">
               <div className="bg-cyan-600 dark:bg-cyan-700 px-4 py-3">
-                <h2 className="text-lg font-semibold text-white">Task Manager</h2>
+                <h2 className="text-lg font-semibold text-white">Study Activity</h2>
               </div>
-              <div className="p-4 h-[calc(100%-52px)] overflow-hidden">
-                <TaskManager initialTasks={taskData} onTasksUpdate={updateTaskData} isAuthenticated={!!user} />
+              <div className="p-4 h-[calc(100%-52px)] overflow-hidden" id="study">
+                <StudyVisualizer studyData={studyData} />
               </div>
             </div>
           </div>
 
           {/* Right column - Visualizer and Water */}
           <div className="space-y-6">
+            
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden h-[calc(50%-12px)]">
               <div className="bg-cyan-600 dark:bg-cyan-700 px-4 py-3">
-                <h2 className="text-lg font-semibold text-white">Study Activity</h2>
+                <h2 className="text-lg font-semibold text-white">Task Manager</h2>
               </div>
-              <div className="p-4 h-[calc(100%-52px)] overflow-hidden">
-                <StudyVisualizer studyData={studyData} />
+              <div className="p-4 h-[50vh] overflow-y-scroll">
+                <TaskManager initialTasks={taskData} onTasksUpdate={updateTaskData} isAuthenticated={!!user} />
               </div>
             </div>
 

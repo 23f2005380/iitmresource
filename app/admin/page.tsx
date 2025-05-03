@@ -227,6 +227,34 @@ export default function AdminPage() {
             </CardContent>
           </Card>
 
+          <Link href="/admin/send-emails" className="card hover:shadow-md transition-shadow">
+            <div className="card-content p-6">
+              <div className="flex items-center gap-3">
+                <div className="icon-container bg-blue-100 dark:bg-blue-900">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="20"
+                    height="20"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="text-blue-600 dark:text-blue-300"
+                  >
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                    <polyline points="22,6 12,13 2,6"></polyline>
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-medium">Send Emails</h3>
+                  <p className="text-sm text-light">Send custom emails to users</p>
+                </div>
+              </div>
+            </div>
+          </Link>
+
           {/* Platform Settings */}
           <Card className="hover-card-animation">
             <CardHeader>
