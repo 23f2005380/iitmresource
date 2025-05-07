@@ -535,14 +535,33 @@ export default function WeekPage({ params }: { params: { id: string; weekNum: st
   const renderResourceContent = (resource: Resource) => {
     switch (resource.type) {
       case "youtube":
+        // Extract video ID from YouTube URL
+        const getYouTubeVideoId = (url) => {
+          if (!url) return null
+
+          // Handle youtu.be format
+          if (url.includes("youtu.be")) {
+            const parts = url.split("/")
+            return parts[parts.length - 1].split("?")[0]
+          }
+
+          // Handle youtube.com format
+          const urlParams = new URLSearchParams(new URL(url).search)
+          return urlParams.get("v")
+        }
+
+        const videoId = getYouTubeVideoId(resource.url)
+        const embedUrl = videoId ? `https://www.youtube.com/embed/${videoId}` : ""
+
         return (
           <div className="flex flex-col gap-4">
             <div className="aspect-video w-full">
               <iframe
-                src={resource.url?.replace("watch?v=", "embed/") || ""}
+                src={embedUrl}
                 className="w-full h-full rounded-md"
                 allowFullScreen
                 title={resource.title}
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               ></iframe>
             </div>
 

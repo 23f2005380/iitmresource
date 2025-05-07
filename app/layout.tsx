@@ -5,6 +5,7 @@ import "./globals.css"
 import "@/styles/typography.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { FloatingNotification } from "@/components/floating-notification"
+import { PageTransition } from "@/components/page-transition"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -23,7 +24,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-          {children}
+          <PageTransition>{children}</PageTransition>
         </ThemeProvider>
         <FloatingNotification />
       </body>

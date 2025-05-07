@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import { collection, getDocs, query, where, addDoc, serverTimestamp } from "firebase/firestore"
+import { collection, getDocs, query, where } from "firebase/firestore"
 import { getDatabase, ref, update } from "firebase/database"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -168,53 +168,67 @@ export default function AdminNotificationsPage() {
     setSending(true)
 
     try {
+      console.log("Sending notification:", { title, message, sendToAll })
+
       const rtdb = getDatabase()
+      // Generate a unique notification ID
       const notificationId = Date.now().toString()
 
-      // Create notification in Firestore first
       const notificationData = {
-        id: notificationId,
         title,
         message,
         sender: auth.currentUser?.email || "admin",
-        timestamp: serverTimestamp(),
+        timestamp: Date.now(),
         read: false,
         allowReply,
-        recipients: sendToAll ? "all" : selectedUsers.map((user) => user.email),
       }
 
-      // Add to notifications collection in Firestore
-      await addDoc(collection(db, "notifications"), notificationData)
+      console.log("Notification data:", notificationData)
 
-      // Create a batch of updates for Realtime Database
+      // Create a batch of updates to perform atomically
       const updates = {}
 
       if (sendToAll) {
         // Send to all users
+        console.log(`Sending to all ${allUsers.length} users`)
+
+        const allNotification = {
+          ...notificationData,
+          recipients: "all",
+        }
+
+        // For each user, create a notification entry
         for (const user of allUsers) {
           if (user.email) {
             const userEmail = user.email.replace(/\./g, ",")
-            updates[`notifications/${userEmail}/${notificationId}`] = {
-              ...notificationData,
-              timestamp: Date.now(), // For Realtime DB we need a JS timestamp
-            }
+            updates[`notifications/${userEmail}/${notificationId}`] = allNotification
+            console.log(`Added notification for user: ${user.email}`)
           }
         }
       } else {
         // Send to selected users
+        console.log(`Sending to ${selectedUsers.length} selected users`)
+
+        const selectedNotification = {
+          ...notificationData,
+          recipients: selectedUsers.map((user) => user.email),
+        }
+
+        // For each selected user, create a notification entry
         for (const user of selectedUsers) {
           if (user.email) {
             const userEmail = user.email.replace(/\./g, ",")
-            updates[`notifications/${userEmail}/${notificationId}`] = {
-              ...notificationData,
-              timestamp: Date.now(), // For Realtime DB we need a JS timestamp
-            }
+            updates[`notifications/${userEmail}/${notificationId}`] = selectedNotification
+            console.log(`Added notification for user: ${user.email}`)
           }
         }
       }
 
+      console.log("Updates to be applied:", updates)
+
       // Perform all updates in a single operation
       await update(ref(rtdb), updates)
+      console.log("Notifications saved successfully")
 
       alert(
         sendToAll

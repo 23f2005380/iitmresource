@@ -1,8 +1,8 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { getDatabase, ref, onValue, off, push, update, get } from "firebase/database"
-import { doc, getDoc, collection, query, where, getDocs } from "firebase/firestore"
+import { getDatabase, ref, onValue, push, update } from "firebase/database"
+import { doc, getDoc } from "firebase/firestore"
 import { Bell } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { db, auth } from "../app/firebase"
@@ -58,141 +58,86 @@ export function NotificationSystem() {
     const loadNotifications = async () => {
       try {
         setLoading(true)
+        console.log("Loading notifications for user:", user.email)
 
         // First try to get notifications from Realtime Database
         const rtdb = getDatabase()
         const userEmail = user.email?.replace(/\./g, ",") || "anonymous"
         const rtdbNotificationsRef = ref(rtdb, `notifications/${userEmail}`)
 
-        // Get notifications from Realtime Database
-        const rtdbSnapshot = await get(rtdbNotificationsRef)
-        const notificationsArray = []
-
-        if (rtdbSnapshot.exists()) {
-          const rtdbNotifications = rtdbSnapshot.val()
-
-          for (const id in rtdbNotifications) {
-            notificationsArray.push({
-              id,
-              ...rtdbNotifications[id],
-              source: "rtdb",
-            })
-          }
-        }
-
-        // Also get notifications from Firestore
-        const firestoreNotificationsRef = collection(db, "notifications")
-        const q = query(firestoreNotificationsRef, where("recipients", "array-contains", user.email))
-
-        const firestoreSnapshot = await getDocs(q)
-
-        firestoreSnapshot.forEach((doc) => {
-          const notification = doc.data()
-          // Check if this notification is already in the array (from RTDB)
-          const exists = notificationsArray.some((n) => n.id === notification.id)
-
-          if (!exists) {
-            notificationsArray.push({
-              ...notification,
-              source: "firestore",
-            })
-          }
-        })
-
-        // Also get "all" notifications
-        const allNotificationsQuery = query(firestoreNotificationsRef, where("recipients", "==", "all"))
-
-        const allNotificationsSnapshot = await getDocs(allNotificationsQuery)
-
-        allNotificationsSnapshot.forEach((doc) => {
-          const notification = doc.data()
-          // Check if this notification is already in the array
-          const exists = notificationsArray.some((n) => n.id === notification.id)
-
-          if (!exists) {
-            notificationsArray.push({
-              ...notification,
-              source: "firestore",
-            })
-          }
-        })
-
-        // Sort by timestamp (newest first)
-        notificationsArray.sort((a, b) => {
-          const timestampA = a.timestamp?.seconds ? a.timestamp.seconds * 1000 : a.timestamp
-          const timestampB = b.timestamp?.seconds ? b.timestamp.seconds * 1000 : b.timestamp
-          return timestampB - timestampA
-        })
-
-        // Count unread notifications
-        const unread = notificationsArray.filter((n) => !n.read).length
-
-        setNotifications(notificationsArray)
-        setUnreadCount(unread)
-        setLoading(false)
+        console.log("RTDB path:", `notifications/${userEmail}`)
 
         // Set up real-time listener for RTDB
-        onValue(rtdbNotificationsRef, (snapshot) => {
-          if (snapshot.exists()) {
-            const rtdbNotifications = snapshot.val()
-            const updatedNotifications = []
-            let unreadCount = 0
+        const unsubscribe = onValue(
+          rtdbNotificationsRef,
+          (snapshot) => {
+            console.log("RTDB notification snapshot:", snapshot.exists() ? "exists" : "does not exist")
 
-            for (const id in rtdbNotifications) {
-              const notification = {
-                id,
-                ...rtdbNotifications[id],
-                source: "rtdb",
+            if (snapshot.exists()) {
+              const rtdbNotifications = snapshot.val()
+              console.log("RTDB notifications data:", rtdbNotifications)
+
+              const notificationsArray = []
+              let unreadCount = 0
+
+              for (const id in rtdbNotifications) {
+                const notification = {
+                  id,
+                  ...rtdbNotifications[id],
+                  source: "rtdb",
+                }
+
+                notificationsArray.push(notification)
+                if (!notification.read) unreadCount++
               }
 
-              updatedNotifications.push(notification)
-              if (!notification.read) unreadCount++
+              // Sort by timestamp (newest first)
+              notificationsArray.sort((a, b) => b.timestamp - a.timestamp)
+
+              console.log("Processed notifications:", notificationsArray)
+              setNotifications(notificationsArray)
+              setUnreadCount(unreadCount)
+            } else {
+              console.log("No notifications found in RTDB")
+              setNotifications([])
+              setUnreadCount(0)
             }
 
-            // Sort by timestamp (newest first)
-            updatedNotifications.sort((a, b) => b.timestamp - a.timestamp)
+            setLoading(false)
+          },
+          (error) => {
+            console.error("Error loading notifications from RTDB:", error)
+            setLoading(false)
+          },
+        )
 
-            setNotifications(updatedNotifications)
-            setUnreadCount(unreadCount)
-          }
-        })
+        return () => unsubscribe()
       } catch (error) {
-        console.error("Error loading notifications:", error)
+        console.error("Error in notification loading:", error)
         setLoading(false)
       }
     }
 
     loadNotifications()
-
-    return () => {
-      // Clean up RTDB listener
-      const rtdb = getDatabase()
-      const userEmail = user.email?.replace(/\./g, ",") || "anonymous"
-      const rtdbNotificationsRef = ref(rtdb, `notifications/${userEmail}`)
-      off(rtdbNotificationsRef)
-    }
   }, [])
 
-  const markAsRead = async (notificationId, source) => {
+  const markAsRead = async (notificationId, source = "rtdb") => {
     try {
       const user = auth.currentUser
       if (!user) return
 
-      if (source === "rtdb") {
-        const rtdb = getDatabase()
-        const notificationRef = ref(
-          rtdb,
-          `notifications/${user.email?.replace(/\./g, ",") || "anonymous"}/${notificationId}`,
-        )
+      console.log("Marking notification as read:", notificationId)
 
-        await update(notificationRef, {
-          read: true,
-        })
-      } else {
-        // For Firestore notifications, we would need to update the Firestore document
-        // This would require knowing the document ID, which we don't have here
-        // For now, we'll just update the local state
-      }
+      const rtdb = getDatabase()
+      const userEmail = user.email?.replace(/\./g, ",") || "anonymous"
+      const notificationRef = ref(rtdb, `notifications/${userEmail}/${notificationId}`)
+
+      // Update in RTDB
+      await update(notificationRef, {
+        read: true,
+      })
+
+      console.log("Notification marked as read in database")
 
       // Update local state
       setNotifications((prev) =>
