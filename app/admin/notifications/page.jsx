@@ -252,7 +252,7 @@ export default function AdminNotificationsPage() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex flex-col">
-        <Navbar />
+     
         <main className="flex-1 container py-8 flex items-center justify-center">
           <div className="card w-full max-w-md">
             <div className="card-header text-center">
@@ -270,7 +270,7 @@ export default function AdminNotificationsPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar />
+     
       <main className="flex-1 container py-4 md:py-8 px-2 md:px-4">
         <div className="flex items-center gap-2 mb-6">
           <Link href="/admin">

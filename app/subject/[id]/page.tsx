@@ -184,7 +184,6 @@ export default function SubjectPage({ params }: { params: { id: string } }) {
         <div className="absolute top-1/2 left-1/3 w-72 h-72 rounded-full bg-pink-100/20 dark:bg-blue-700/10 blur-xl animate-float-fast"></div>
         <div className="absolute bottom-1/3 left-1/4 w-48 h-48 rounded-full bg-pink-400/10 dark:bg-indigo-600/10 blur-xl animate-float-reverse"></div>
 
-        <Navbar />
         <main className="flex-1 container py-8 flex items-center justify-center relative z-10">
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />

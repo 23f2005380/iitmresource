@@ -234,6 +234,9 @@ export function NotificationSystem() {
       .substring(0, 2)
   }
 
+  // Only show notifications for authenticated users
+  if (!auth.currentUser) return null
+
   return (
     <div className="relative z-50" ref={notificationRef}>
       <Button variant="ghost" size="icon" className="relative" onClick={() => setShowNotifications(!showNotifications)}>

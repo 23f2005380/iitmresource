@@ -322,7 +322,7 @@ export default function NotificationRepliesPage() {
   if (!isAdmin) {
     return (
       <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-50 to-white dark:from-gray-900 dark:to-gray-950">
-        <Navbar />
+     
         <main className="flex-1 container py-8 flex items-center justify-center">
           <Card className="w-full max-w-md">
             <CardHeader className="text-center">
@@ -340,7 +340,7 @@ export default function NotificationRepliesPage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-50 to-white dark:from-gray-900 dark:to-gray-950">
-      <Navbar />
+     
       <main className="flex-1 container py-4 md:py-8 px-2 md:px-4">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
