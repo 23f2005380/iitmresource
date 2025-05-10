@@ -12,98 +12,117 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
-    }
-    
-    function isResourceOwner(resourceId) {
-      return isSignedIn() && 
-        exists(/databases/$(database)/documents/resources/$(resourceId)) &&
-        get(/databases/$(database)/documents/resources/$(resourceId)).data.createdBy == request.auth.uid;
-    }
-    
-    function isChatRoomMember(roomId) {
-      return isSignedIn() && 
-        exists(/databases/$(database)/documents/chatRooms/$(roomId)) &&
-        request.auth.uid in get(/databases/$(database)/documents/chatRooms/$(roomId)).data.members;
-    }
-
-    // Users collection
+    // User profiles
     match /users/{userId} {
-      allow read: if isSignedIn();
-      allow create, update, delete: if isOwner(userId) || isAdmin();
+      allow read;
+      allow create, update, delete: if isAdmin() || request.auth.uid == userId;
     }
     
-    // Subjects collection - public read, admin write
+    // Subjects - publicly readable
     match /subjects/{subjectId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read;
+      allow create, update, delete: if isAdmin();
     }
     
-    // Resources collection - public read, authenticated write
+    // Resources - publicly readable
     match /resources/{resourceId} {
-      allow read: if true;
+      allow read;
       allow create: if isSignedIn();
-      allow update, delete: if isResourceOwner(resourceId) || isAdmin();
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.token.email);
     }
     
-    // Comments collection - public read, authenticated write
+    // Comments - require login
     match /comments/{commentId} {
-      allow read: if true;
+      allow read;
       allow create: if isSignedIn();
-      allow update, delete: if request.auth.uid == resource.data.createdBy || isAdmin();
+      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.token.email);
     }
     
-    // Notifications collection - owner read/write, admin write
-    match /notifications/{notificationId} {
-      allow read: if isSignedIn() && (request.auth.uid == resource.data.recipientId || request.auth.uid == resource.data.senderId);
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && (request.auth.uid == resource.data.recipientId || request.auth.uid == resource.data.senderId || isAdmin());
-      allow delete: if isAdmin();
+    // Chats - require login
+    match /chats/{chatId} {
+      allow read: if isSignedIn() && (
+        // General and subject chats are readable by all signed-in users
+        (resource.data.chatRoomId == null) || 
+        // Private chats are only readable by participants
+        (resource.data.chatRoomId != null && 
+         exists(/databases/$(database)/documents/chatRooms/$(resource.data.chatRoomId)) && 
+         request.auth.token.email in get(/databases/$(database)/documents/chatRooms/$(resource.data.chatRoomId)).data.participants)
+      );
+      
+      allow create: if isSignedIn() && (
+        // Anyone can create general or subject chat messages
+        (request.resource.data.chatRoomId == null && request.resource.data.sender == request.auth.token.email) ||
+        // For private chats, user must be a participant
+        (request.resource.data.chatRoomId != null && 
+         exists(/databases/$(database)/documents/chatRooms/$(request.resource.data.chatRoomId)) && 
+         request.auth.token.email in get(/databases/$(database)/documents/chatRooms/$(request.resource.data.chatRoomId)).data.participants &&
+         request.resource.data.sender == request.auth.token.email)
+      );
+      
+      allow update, delete: if isSignedIn() && (
+        isAdmin() || resource.data.sender == request.auth.token.email
+      );
     }
     
-    // Study sessions collection - owner read/write
-    match /studySessions/{sessionId} {
-      allow read: if true;
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && request.auth.uid == resource.data.userId;
-    }
-    
-    // Chat rooms collection
+    // Chat Rooms - require login
     match /chatRooms/{roomId} {
-      // Anyone can read chat rooms
-      allow read: if true;
+      // Allow any signed-in user to read chat room data
+      allow read: if isSignedIn();
       
-      // Anyone can create a chat room
-      allow create: if isSignedIn();
+      // Allow any signed-in user to create a chat room
+      allow create: if isSignedIn() && (
+        request.resource.data.createdBy == request.auth.token.email &&
+        request.auth.token.email in request.resource.data.participants
+      );
       
-      // Members can update chat rooms (for joining)
+      // Critical fix: Allow updating participants array for joining rooms
       allow update: if isSignedIn() && (
-        // Allow updates if user is already a member
-        (isChatRoomMember(roomId)) ||
-        // Allow updates if user is joining (only adding themselves to members)
-        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) &&
-         request.resource.data.members.hasOnly(resource.data.members.concat([request.auth.uid])))
+        // Allow creator or admin to update
+        resource.data.createdBy == request.auth.token.email || 
+        isAdmin() ||
+        // Allow joining (adding self to participants)
+        (request.resource.data.participants.hasAll(resource.data.participants) && 
+         resource.data.participants.size() < request.resource.data.participants.size() &&
+         request.resource.data.createdBy == resource.data.createdBy &&
+         request.resource.data.name == resource.data.name)
       );
       
-      // Only admin or creator can delete
       allow delete: if isSignedIn() && (
-        request.auth.uid == resource.data.createdBy || isAdmin()
+        isAdmin() || resource.data.createdBy == request.auth.token.email
       );
-      
-      // Messages subcollection
-      match /messages/{messageId} {
-        allow read: if true;
-        allow create: if isSignedIn() && (
-          // User must be a member to create messages
-          request.auth.uid in get(/databases/$(database)/documents/chatRooms/$(roomId)).data.members &&
-          // Message must be from the authenticated user
-          request.resource.data.userId == request.auth.uid
-        );
-        allow update, delete: if isSignedIn() && (
-          request.auth.uid == resource.data.userId || isAdmin()
-        );
-      }
+    }
+    
+    // Study sessions - publicly readable, but require login to create/modify
+    match /studySessions/{sessionId} {
+      allow read;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.token.email;
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.token.email;
+    }
+    
+    // Water tracking - require login
+    match /waterTracking/{userId} {
+      allow read: if isSignedIn() && userId == request.auth.token.email;
+      allow create, update: if isSignedIn() && userId == request.auth.token.email;
+    }
+    
+    // Tasks - require login
+    match /tasks/{taskId} {
+      allow read: if isSignedIn() && resource.data.userId == request.auth.token.email;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.token.email;
+      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.token.email;
+    }
+    
+    // Notifications - allow read/write for the recipient
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && resource.data.recipientEmail == request.auth.token.email;
+      allow create: if isSignedIn() && (isAdmin() || request.resource.data.senderEmail == request.auth.token.email);
+      allow update: if isSignedIn() && resource.data.recipientEmail == request.auth.token.email;
+      allow delete: if isSignedIn() && (isAdmin() || resource.data.recipientEmail == request.auth.token.email);
+    }
+    
+    // Other collections
+    match /{document=**} {
+      allow read, write: if isAdmin();
     }
   }
 }

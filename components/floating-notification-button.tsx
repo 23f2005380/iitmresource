@@ -1,70 +1,71 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { Bell } from "lucide-react"
+import { useState, useEffect, useRef } from "react"
+import { Bell, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
-import { db } from "@/lib/firebase"
-import { collection, query, where, onSnapshot, updateDoc, doc, orderBy, type Timestamp } from "firebase/firestore"
-import { useAuth } from "@/app/auth-context"
+import { db, auth } from "@/app/firebase"
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  onSnapshot,
+  updateDoc,
+  doc,
+  addDoc,
+  serverTimestamp,
+  getDoc,
+} from "firebase/firestore"
+import { useAuthState } from "react-firebase-hooks/auth"
+import { Avatar } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
-import { addDoc, serverTimestamp } from "firebase/firestore"
-
-interface Notification {
-  id: string
-  title: string
-  message: string
-  createdAt: Timestamp
-  recipientId: string
-  read: boolean
-  type: string
-  resourceId?: string
-  senderId?: string
-  senderName?: string
-  replied?: boolean
-}
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function FloatingNotificationButton() {
-  const { user } = useAuth()
-  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [user] = useAuthState(auth)
+  const [isOpen, setIsOpen] = useState(false)
+  const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
-  const [open, setOpen] = useState(false)
-  const [replyText, setReplyText] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [replyText, setReplyText] = useState<{ [key: string]: string }>({})
+  const [replying, setReplying] = useState<{ [key: string]: boolean }>({})
+  const notificationRef = useRef<HTMLDivElement>(null)
 
+  // Load notifications
   useEffect(() => {
-    if (!user?.uid) return
+    if (!user) return
 
     setLoading(true)
-    setError(null)
-
-    console.log("Setting up notification listener for user:", user.uid)
+    console.log("Loading notifications for user:", user.email)
 
     try {
       const q = query(
         collection(db, "notifications"),
-        where("recipientId", "==", user.uid),
+        where("recipientEmail", "==", user.email),
         orderBy("createdAt", "desc"),
       )
 
       const unsubscribe = onSnapshot(
         q,
         (snapshot) => {
-          const notificationData = snapshot.docs.map((doc) => ({
+          console.log("Notification snapshot received, docs:", snapshot.docs.length)
+          const notifs = snapshot.docs.map((doc) => ({
             id: doc.id,
             ...doc.data(),
-          })) as Notification[]
+          }))
 
-          console.log("Notifications fetched:", notificationData.length)
-          setNotifications(notificationData)
-          setUnreadCount(notificationData.filter((n) => !n.read).length)
+          setNotifications(notifs)
+
+          // Count unread notifications
+          const unread = notifs.filter((notif: any) => !notif.read).length
+          setUnreadCount(unread)
+
           setLoading(false)
         },
-        (err) => {
-          console.error("Error fetching notifications:", err)
-          setError(`Error fetching notifications: ${err.message}`)
+        (error) => {
+          console.error("Error in notification listener:", error)
           setLoading(false)
         },
       )
@@ -74,176 +75,182 @@ export default function FloatingNotificationButton() {
           unsubscribe()
         }
       }
-    } catch (err: any) {
-      console.error("Error setting up notification listener:", err)
-      setError(`Error setting up notification listener: ${err.message}`)
+    } catch (error) {
+      console.error("Error setting up notification listener:", error)
       setLoading(false)
     }
-  }, [user?.uid])
+  }, [user])
 
+  // Handle click outside to close
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (notificationRef.current && !notificationRef.current.contains(e.target as Node) && isOpen) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [isOpen])
+
+  // Mark notification as read
   const markAsRead = async (notificationId: string) => {
-    if (!user?.uid) return
-
     try {
       const notificationRef = doc(db, "notifications", notificationId)
       await updateDoc(notificationRef, {
         read: true,
       })
-      console.log("Marked notification as read:", notificationId)
-    } catch (err) {
-      console.error("Error marking notification as read:", err)
+    } catch (error) {
+      console.error("Error marking notification as read:", error)
     }
   }
 
+  // Handle reply to notification
   const handleReply = async (notificationId: string) => {
-    if (!user?.uid || !replyText[notificationId]) return
+    if (!user || !replyText[notificationId]?.trim()) return
 
     try {
-      const notification = notifications.find((n) => n.id === notificationId)
-      if (!notification || !notification.senderId) return
+      setReplying({ ...replying, [notificationId]: true })
 
-      // Create a new notification as a reply
-      const notificationsRef = collection(db, "notifications")
-      await addDoc(notificationsRef, {
-        title: "Reply to your notification",
-        message: replyText[notificationId],
-        createdAt: serverTimestamp(),
-        recipientId: notification.senderId,
-        senderId: user.uid,
-        senderName: user.displayName || "User",
-        read: false,
+      // Get the notification to reply to
+      const notificationDoc = await getDoc(doc(db, "notifications", notificationId))
+      const notification = notificationDoc.data()
+
+      if (!notification) {
+        console.error("Notification not found")
+        setReplying({ ...replying, [notificationId]: false })
+        return
+      }
+
+      // Create a reply notification
+      await addDoc(collection(db, "notifications"), {
         type: "reply",
+        content: replyText[notificationId],
+        createdAt: serverTimestamp(),
+        read: false,
+        recipientEmail: notification.senderEmail,
+        senderEmail: user.email,
+        senderName: user.displayName || user.email,
         originalNotificationId: notificationId,
-      })
-
-      // Mark the original notification as replied
-      const notificationRef = doc(db, "notifications", notificationId)
-      await updateDoc(notificationRef, {
-        replied: true,
+        originalContent: notification.content,
       })
 
       // Clear the reply text
-      setReplyText((prev) => ({
-        ...prev,
-        [notificationId]: "",
-      }))
-
-      console.log("Sent reply to notification:", notificationId)
-    } catch (err) {
-      console.error("Error sending reply:", err)
+      setReplyText({ ...replyText, [notificationId]: "" })
+      setReplying({ ...replying, [notificationId]: false })
+    } catch (error) {
+      console.error("Error sending reply:", error)
+      setReplying({ ...replying, [notificationId]: false })
     }
   }
 
-  const formatDate = (timestamp: Timestamp) => {
-    if (!timestamp) return "Unknown date"
-
-    const date = timestamp.toDate()
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(date)
+  // Toggle notification panel
+  const toggleNotifications = () => {
+    setIsOpen(!isOpen)
   }
 
-  if (!user) return null
-
   return (
-    <div className="fixed bottom-24 right-4 z-50">
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetTrigger asChild>
-          <Button
-            size="icon"
-            className="rounded-full shadow-lg bg-primary hover:bg-primary/90 relative"
-            onClick={() => {
-              console.log("Notification button clicked")
-            }}
-          >
-            <Bell className="h-5 w-5" />
-            {unreadCount > 0 && (
-              <Badge className="absolute -top-2 -right-2 px-2 py-1 bg-red-500 text-white">{unreadCount}</Badge>
-            )}
-          </Button>
-        </SheetTrigger>
-        <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle>Notifications</SheetTitle>
-          </SheetHeader>
+    <div className="fixed bottom-24 right-4 z-50" ref={notificationRef}>
+      {/* Notification Button */}
+      <Button
+        onClick={toggleNotifications}
+        className="rounded-full h-12 w-12 shadow-lg flex items-center justify-center relative"
+        variant="default"
+      >
+        <Bell className="h-5 w-5" />
+        {unreadCount > 0 && (
+          <Badge className="absolute -top-1 -right-1 px-2 py-1 text-xs" variant="destructive">
+            {unreadCount}
+          </Badge>
+        )}
+      </Button>
+
+      {/* Notification Panel */}
+      {isOpen && (
+        <Card className="absolute bottom-16 right-0 w-80 max-h-96 overflow-y-auto shadow-xl p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="font-semibold">Notifications</h3>
+            <Button variant="ghost" size="sm" onClick={() => setIsOpen(false)}>
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
 
           {loading ? (
-            <div className="flex justify-center items-center h-40">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-            </div>
-          ) : error ? (
-            <div className="text-red-500 p-4">
-              {error}
-              <Button className="mt-2 w-full" onClick={() => window.location.reload()}>
-                Retry
-              </Button>
+            <div className="space-y-4">
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="space-y-2 flex-1">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+              </div>
             </div>
           ) : notifications.length === 0 ? (
-            <div className="text-center p-8 text-muted-foreground">No notifications yet</div>
+            <p className="text-center text-muted-foreground py-4">No notifications</p>
           ) : (
-            <div className="space-y-4 mt-4">
+            <div className="space-y-4">
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-4 rounded-lg border ${notification.read ? "bg-background" : "bg-muted"}`}
+                  className={`p-3 rounded-lg ${notification.read ? "bg-muted/50" : "bg-muted"}`}
                   onClick={() => !notification.read && markAsRead(notification.id)}
                 >
-                  <div className="flex justify-between items-start">
-                    <div className="font-medium">{notification.title}</div>
-                    <div className="text-xs text-muted-foreground">{formatDate(notification.createdAt)}</div>
+                  <div className="flex items-start gap-3 mb-2">
+                    <Avatar className="h-8 w-8">
+                      <div className="bg-primary text-primary-foreground rounded-full h-full w-full flex items-center justify-center text-xs font-medium">
+                        {notification.senderName?.charAt(0) || "U"}
+                      </div>
+                    </Avatar>
+                    <div>
+                      <p className="text-sm font-medium">{notification.senderName || "Unknown"}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {notification.createdAt?.toDate().toLocaleString() || "Just now"}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="mt-2 text-sm">{notification.message}</div>
+                  <p className="text-sm mb-2">{notification.content}</p>
 
-                  {notification.type === "resource_comment" && notification.resourceId && (
-                    <Button
-                      variant="link"
-                      className="p-0 h-auto mt-2 text-xs"
-                      onClick={() => {
-                        window.location.href = `/resource/${notification.resourceId}`
-                        setOpen(false)
-                      }}
-                    >
-                      View Resource
-                    </Button>
-                  )}
-
-                  {notification.senderId && !notification.replied && (
-                    <div className="mt-3 space-y-2">
-                      <Textarea
-                        placeholder="Write a reply..."
-                        className="text-sm"
-                        value={replyText[notification.id] || ""}
-                        onChange={(e) =>
-                          setReplyText((prev) => ({
-                            ...prev,
-                            [notification.id]: e.target.value,
-                          }))
-                        }
-                      />
-                      <Button
-                        size="sm"
-                        className="w-full"
-                        disabled={!replyText[notification.id]}
-                        onClick={() => handleReply(notification.id)}
-                      >
-                        Reply
-                      </Button>
+                  {/* Original message if this is a reply */}
+                  {notification.originalContent && (
+                    <div className="ml-4 pl-2 border-l-2 border-muted-foreground/30 text-xs text-muted-foreground mb-2">
+                      <p>Re: {notification.originalContent}</p>
                     </div>
                   )}
 
-                  {notification.replied && (
-                    <div className="mt-2 text-xs text-green-600">You replied to this notification</div>
-                  )}
+                  {/* Reply form */}
+                  <div className="mt-2">
+                    <Textarea
+                      placeholder="Reply to this notification..."
+                      className="text-xs min-h-[60px] mb-2"
+                      value={replyText[notification.id] || ""}
+                      onChange={(e) => setReplyText({ ...replyText, [notification.id]: e.target.value })}
+                    />
+                    <Button
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={() => handleReply(notification.id)}
+                      disabled={replying[notification.id] || !replyText[notification.id]?.trim()}
+                    >
+                      {replying[notification.id] ? "Sending..." : "Reply"}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
-        </SheetContent>
-      </Sheet>
+        </Card>
+      )}
     </div>
   )
 }
