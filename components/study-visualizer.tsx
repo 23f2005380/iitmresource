@@ -154,7 +154,7 @@ export function StudyVisualizer({ studyData = [] }: StudyVisualizerProps) {
     })
 
     setStats({
-      totalHours: Number.parseFloat(totalHours),
+      totalHours: Number.parseFloat(totalHours.toFixed(1)),
       averagePerDay: Number.parseFloat((totalHours / dayCount).toFixed(1)),
       longestSession: Math.floor(longestSession / 60),
       daysStudied,

@@ -4,12 +4,8 @@ import { Inter } from "next/font/google"
 import "./globals.css"
 import "@/styles/typography.css"
 import { ThemeProvider } from "@/components/theme-provider"
-import { FloatingChat } from "@/components/floating-chat"
-import { NotificationSystem } from "@/components/notification-system"
-import FloatingNotificationButton from "@/components/floating-notification-button"
+import { FloatingNotification } from "@/components/floating-notification"
 import { PageTransition } from "@/components/page-transition"
-import { Navbar } from "@/components/navbar"
-import { AuthProvider } from "./auth-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -27,18 +23,10 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <AuthProvider>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <PageTransition>
-              <Navbar />
-              {children}
-              <FloatingNotificationButton />
-              <FloatingChat />
-            </PageTransition>
-          </ThemeProvider>
-          {/* We'll keep this for backward compatibility but it might be redundant */}
-          <NotificationSystem />
-        </AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <PageTransition>{children}</PageTransition>
+        </ThemeProvider>
+        <FloatingNotification />
       </body>
     </html>
   )

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Book, Home, LogIn, LogOut, Menu, Trophy, User, X, Clock } from "lucide-react"
+import { Book, Home, LogIn, LogOut, Menu, MessageSquare, Trophy, User, X, Clock } from "lucide-react"
 import { signOut } from "firebase/auth"
 import { useEffect, useState } from "react"
 import { doc, getDoc } from "firebase/firestore"
@@ -70,6 +70,12 @@ export function Navbar() {
       label: "Home",
       icon: <Home className="h-4 w-4" />,
       active: pathname === "/",
+    },
+    {
+      href: "/chat",
+      label: "Chat",
+      icon: <MessageSquare className="h-4 w-4" />,
+      active: pathname === "/chat",
     },
     {
       href: "/leaderboard",

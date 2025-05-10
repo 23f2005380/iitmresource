@@ -1,23 +1,22 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import { getDatabase, ref, onValue, push, update } from "firebase/database"
+import { getDatabase, ref, onValue, off, push, update } from "firebase/database"
 import { doc, getDoc } from "firebase/firestore"
 import { Bell } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { db, auth } from "../app/firebase"
+import { db, auth } from "@/lib/firebase"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 
-export function NotificationSystem() {
+export function FloatingNotification() {
   const [notifications, setNotifications] = useState([])
   const [showNotifications, setShowNotifications] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const [replyContent, setReplyContent] = useState("")
   const [replyingTo, setReplyingTo] = useState(null)
   const [replySending, setReplySending] = useState(false)
-  const [loading, setLoading] = useState(true)
   const notificationRef = useRef(null)
 
   // Count words in a string
@@ -47,97 +46,61 @@ export function NotificationSystem() {
     }
   }, [])
 
-  // Load notifications from both Firestore and Realtime Database
   useEffect(() => {
     const user = auth.currentUser
-    if (!user) {
-      setLoading(false)
-      return
-    }
+    if (!user) return
 
-    const loadNotifications = async () => {
+    const rtdb = getDatabase()
+    const userNotificationsRef = ref(rtdb, `notifications/${user.email?.replace(/\./g, ",") || "anonymous"}`)
+
+    const handleNotifications = (snapshot) => {
       try {
-        setLoading(true)
-        console.log("Loading notifications for user:", user.email)
+        if (!snapshot.exists()) return
 
-        // First try to get notifications from Realtime Database
-        const rtdb = getDatabase()
-        const userEmail = user.email?.replace(/\./g, ",") || "anonymous"
-        const rtdbNotificationsRef = ref(rtdb, `notifications/${userEmail}`)
+        const notificationsData = snapshot.val()
+        const notificationsArray = []
+        let unread = 0
 
-        console.log("RTDB path:", `notifications/${userEmail}`)
+        for (const id in notificationsData) {
+          const notification = {
+            id,
+            ...notificationsData[id],
+          }
+          notificationsArray.push(notification)
+          if (!notification.read) unread++
+        }
 
-        // Set up real-time listener for RTDB
-        const unsubscribe = onValue(
-          rtdbNotificationsRef,
-          (snapshot) => {
-            console.log("RTDB notification snapshot:", snapshot.exists() ? "exists" : "does not exist")
+        // Sort by timestamp (newest first)
+        notificationsArray.sort((a, b) => b.timestamp - a.timestamp)
 
-            if (snapshot.exists()) {
-              const rtdbNotifications = snapshot.val()
-              console.log("RTDB notifications data:", rtdbNotifications)
-
-              const notificationsArray = []
-              let unreadCount = 0
-
-              for (const id in rtdbNotifications) {
-                const notification = {
-                  id,
-                  ...rtdbNotifications[id],
-                  source: "rtdb",
-                }
-
-                notificationsArray.push(notification)
-                if (!notification.read) unreadCount++
-              }
-
-              // Sort by timestamp (newest first)
-              notificationsArray.sort((a, b) => b.timestamp - a.timestamp)
-
-              console.log("Processed notifications:", notificationsArray)
-              setNotifications(notificationsArray)
-              setUnreadCount(unreadCount)
-            } else {
-              console.log("No notifications found in RTDB")
-              setNotifications([])
-              setUnreadCount(0)
-            }
-
-            setLoading(false)
-          },
-          (error) => {
-            console.error("Error loading notifications from RTDB:", error)
-            setLoading(false)
-          },
-        )
-
-        return () => unsubscribe()
+        setNotifications(notificationsArray)
+        setUnreadCount(unread)
       } catch (error) {
-        console.error("Error in notification loading:", error)
-        setLoading(false)
+        console.error("Error processing notifications:", error)
       }
     }
 
-    loadNotifications()
+    onValue(userNotificationsRef, handleNotifications)
+
+    return () => {
+      off(userNotificationsRef, "value", handleNotifications)
+    }
   }, [])
 
-  const markAsRead = async (notificationId, source = "rtdb") => {
+  const markAsRead = async (notificationId) => {
     try {
       const user = auth.currentUser
       if (!user) return
 
-      console.log("Marking notification as read:", notificationId)
-
       const rtdb = getDatabase()
-      const userEmail = user.email?.replace(/\./g, ",") || "anonymous"
-      const notificationRef = ref(rtdb, `notifications/${userEmail}/${notificationId}`)
+      const notificationRef = ref(
+        rtdb,
+        `notifications/${user.email?.replace(/\./g, ",") || "anonymous"}/${notificationId}`,
+      )
 
-      // Update in RTDB
       await update(notificationRef, {
         read: true,
       })
-
-      console.log("Notification marked as read in database")
 
       // Update local state
       setNotifications((prev) =>
@@ -209,15 +172,6 @@ export function NotificationSystem() {
   }
 
   const formatTimestamp = (timestamp) => {
-    if (!timestamp) return "Unknown date"
-
-    // Handle Firestore timestamp
-    if (timestamp.seconds) {
-      const date = new Date(timestamp.seconds * 1000)
-      return date.toLocaleString()
-    }
-
-    // Handle regular JS timestamp
     const date = new Date(timestamp)
     return date.toLocaleString()
   }
@@ -235,11 +189,16 @@ export function NotificationSystem() {
   }
 
   return (
-    <div className="relative z-50" ref={notificationRef}>
-      <Button variant="ghost" size="icon" className="relative" onClick={() => setShowNotifications(!showNotifications)}>
+    <div className="fixed bottom-6 right-6 z-50" ref={notificationRef}>
+      <Button
+        variant="default"
+        size="icon"
+        className="relative h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-all duration-300"
+        onClick={() => setShowNotifications(!showNotifications)}
+      >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-primary text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
             {unreadCount}
           </span>
         )}
@@ -251,7 +210,7 @@ export function NotificationSystem() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="absolute right-0 mt-2 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-lg border overflow-hidden"
+            className="absolute right-0 bottom-16 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-lg border overflow-hidden"
           >
             <div className="p-3 border-b flex items-center justify-between">
               <h3 className="font-medium">Notifications</h3>
@@ -274,12 +233,7 @@ export function NotificationSystem() {
             </div>
 
             <div className="custom-scrollbar" style={{ maxHeight: "70vh", overflowY: "auto" }}>
-              {loading ? (
-                <div className="p-4 text-center">
-                  <div className="loading-spinner-sm mx-auto mb-2"></div>
-                  <p className="text-sm text-muted-foreground">Loading notifications...</p>
-                </div>
-              ) : notifications.length === 0 ? (
+              {notifications.length === 0 ? (
                 <div className="p-4 text-center text-muted-foreground">
                   <div className="flex justify-center mb-2">
                     <Bell className="h-6 w-6 text-muted-foreground" />
@@ -302,7 +256,7 @@ export function NotificationSystem() {
                                 variant="ghost"
                                 size="icon"
                                 className="h-6 w-6"
-                                onClick={() => markAsRead(notification.id, notification.source)}
+                                onClick={() => markAsRead(notification.id)}
                               >
                                 <svg
                                   xmlns="http://www.w3.org/2000/svg"
