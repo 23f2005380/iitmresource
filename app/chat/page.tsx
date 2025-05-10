@@ -676,7 +676,6 @@ export default function ChatPage() {
       <div className="absolute top-20 left-10 w-64 h-64 rounded-full bg-gradient-to-br from-pink-200/30 to-purple-300/20 dark:from-blue-900/20 dark:to-indigo-800/10 blur-xl animate-float-slow"></div>
       <div className="absolute bottom-20 right-10 w-80 h-80 rounded-full bg-gradient-to-tr from-blue-200/20 to-cyan-300/15 dark:from-blue-800/15 dark:to-cyan-700/10 blur-xl animate-float-medium"></div>
 
-      <Navbar />
       <main className="flex-1 container py-4 md:py-8 px-2 md:px-4 relative z-10 flex items-center justify-center">
         <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 h-[calc(100vh-8rem)] w-full max-w-6xl flex flex-col overflow-hidden">
           <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col h-full w-full">

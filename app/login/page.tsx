@@ -85,7 +85,7 @@ export default function LoginPage() {
   if (isAuthenticated) {
     return (
       <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-50 to-white dark:from-gray-900 dark:to-gray-950">
-        <Navbar />
+       
         <main className="flex-1 container flex items-center justify-center py-8">
           <Card className="w-full max-w-md">
             <CardHeader>
@@ -111,7 +111,6 @@ export default function LoginPage() {
       <div className="absolute top-1/2 left-1/3 w-72 h-72 rounded-full bg-pink-100/20 dark:bg-blue-700/10 blur-xl animate-float-fast"></div>
       <div className="absolute bottom-1/3 left-1/4 w-48 h-48 rounded-full bg-pink-400/10 dark:bg-indigo-600/10 blur-xl animate-float-reverse"></div>
 
-      <Navbar />
       <main className="flex-1 container flex items-center justify-center py-8 relative z-10">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
