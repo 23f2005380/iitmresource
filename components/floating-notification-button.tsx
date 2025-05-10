@@ -5,7 +5,7 @@ import { Bell, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { db, auth } from "@/app/firebase"
+import { db } from "@/lib/firebase" // Fixed import path
 import {
   collection,
   query,
@@ -17,14 +17,16 @@ import {
   addDoc,
   serverTimestamp,
   getDoc,
+  getDocs,
+  Timestamp,
 } from "firebase/firestore"
-import { useAuthState } from "react-firebase-hooks/auth"
 import { Avatar } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useAuth } from "@/app/auth-context"
 
 export default function FloatingNotificationButton() {
-  const [user] = useAuthState(auth)
+  const { user } = useAuth()
   const [isOpen, setIsOpen] = useState(false)
   const [notifications, setNotifications] = useState<any[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -35,12 +37,32 @@ export default function FloatingNotificationButton() {
 
   // Load notifications
   useEffect(() => {
-    if (!user) return
+    if (!user) {
+      setLoading(false)
+      return
+    }
 
     setLoading(true)
     console.log("Loading notifications for user:", user.email)
 
     try {
+      // First try to fetch notifications to check if the query works
+      const fetchInitialNotifications = async () => {
+        const q = query(
+          collection(db, "notifications"),
+          where("recipientEmail", "==", user.email),
+          orderBy("createdAt", "desc"),
+        )
+
+        const snapshot = await getDocs(q)
+        console.log("Initial fetch returned:", snapshot.docs.length, "notifications")
+      }
+
+      fetchInitialNotifications().catch((err) => {
+        console.error("Initial fetch error:", err)
+      })
+
+      // Set up real-time listener
       const q = query(
         collection(db, "notifications"),
         where("recipientEmail", "==", user.email),
@@ -71,6 +93,7 @@ export default function FloatingNotificationButton() {
       )
 
       return () => {
+        console.log("Cleaning up notification listener")
         if (typeof unsubscribe === "function") {
           unsubscribe()
         }
@@ -80,6 +103,8 @@ export default function FloatingNotificationButton() {
       setLoading(false)
     }
   }, [user])
+
+  // Rest of the component remains the same...
 
   // Handle click outside to close
   useEffect(() => {
@@ -103,6 +128,12 @@ export default function FloatingNotificationButton() {
       await updateDoc(notificationRef, {
         read: true,
       })
+
+      // Update local state immediately
+      setNotifications((prev) => prev.map((notif) => (notif.id === notificationId ? { ...notif, read: true } : notif)))
+
+      // Update unread count
+      setUnreadCount((prev) => Math.max(0, prev - 1))
     } catch (error) {
       console.error("Error marking notification as read:", error)
     }
@@ -151,6 +182,8 @@ export default function FloatingNotificationButton() {
   const toggleNotifications = () => {
     setIsOpen(!isOpen)
   }
+
+  if (!user) return null
 
   return (
     <div className="fixed bottom-24 right-4 z-50" ref={notificationRef}>
@@ -214,7 +247,9 @@ export default function FloatingNotificationButton() {
                     <div>
                       <p className="text-sm font-medium">{notification.senderName || "Unknown"}</p>
                       <p className="text-xs text-muted-foreground">
-                        {notification.createdAt?.toDate().toLocaleString() || "Just now"}
+                        {notification.createdAt instanceof Timestamp
+                          ? notification.createdAt.toDate().toLocaleString()
+                          : "Just now"}
                       </p>
                     </div>
                   </div>
@@ -235,11 +270,15 @@ export default function FloatingNotificationButton() {
                       className="text-xs min-h-[60px] mb-2"
                       value={replyText[notification.id] || ""}
                       onChange={(e) => setReplyText({ ...replyText, [notification.id]: e.target.value })}
+                      onClick={(e) => e.stopPropagation()} // Prevent triggering markAsRead
                     />
                     <Button
                       size="sm"
                       className="w-full text-xs"
-                      onClick={() => handleReply(notification.id)}
+                      onClick={(e) => {
+                        e.stopPropagation() // Prevent triggering markAsRead
+                        handleReply(notification.id)
+                      }}
                       disabled={replying[notification.id] || !replyText[notification.id]?.trim()}
                     >
                       {replying[notification.id] ? "Sending..." : "Reply"}

@@ -9,6 +9,7 @@ import { NotificationSystem } from "@/components/notification-system"
 import FloatingNotificationButton from "@/components/floating-notification-button"
 import { PageTransition } from "@/components/page-transition"
 import { Navbar } from "@/components/navbar"
+import { AuthProvider } from "./auth-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -26,16 +27,18 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <PageTransition>
-            <Navbar />
-            {children}
-            <FloatingNotificationButton />
-            <FloatingChat />
-          </PageTransition>
-        </ThemeProvider>
-        {/* Notification system */}
-        <NotificationSystem />
+        <AuthProvider>
+          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+            <PageTransition>
+              <Navbar />
+              {children}
+              <FloatingNotificationButton />
+              <FloatingChat />
+            </PageTransition>
+          </ThemeProvider>
+          {/* We'll keep this for backward compatibility but it might be redundant */}
+          <NotificationSystem />
+        </AuthProvider>
       </body>
     </html>
   )
