@@ -1,14 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   images: {
     domains: ["firebasestorage.googleapis.com", "lh3.googleusercontent.com"],
     unoptimized: true,
   },
-  // Ensure proper handling of client components
+  // Fix experimental options format
   experimental: {
-    serverActions: true,
+    serverActions: {
+      allowedOrigins: ["localhost:3000", "*.vercel.app"],
+    },
   },
   eslint: {
     ignoreDuringBuilds: true,

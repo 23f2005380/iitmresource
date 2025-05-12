@@ -1,45 +1,22 @@
-"use client"
-import { useSearchParams } from "next/navigation"
 import { Suspense } from "react"
+import { Loader2 } from "lucide-react"
 import SubjectSearchContent from "@/components/subject-search-content"
 
-interface Subject {
-  id: string
-  name: string
-  level: string
-  description: string
-  weeks: number
-}
-
-interface Resource {
-  id: string
-  title: string
-  description: string
-  type: string
-  url?: string
-  content?: string
-  createdBy: string
-  creatorName?: string
-  createdAt: any
-  likes: number
-  likedBy: string[]
-  subjectId: string
-  week?: number
-  isGeneral?: boolean
-}
-
-// Wrap the component that uses useSearchParams in Suspense
 export default function SubjectSearchPage({ params }: { params: { id: string } }) {
   return (
-    <Suspense fallback={<div className="text-center p-8">Loading search results...</div>}>
-      <SubjectSearchWrapper params={params} />
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-50 to-white dark:from-gray-900 dark:to-gray-950">
+          <div className="flex-1 container py-8 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <p className="text-muted-foreground">Loading search results...</p>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <SubjectSearchContent params={params} />
     </Suspense>
   )
-}
-
-// Client component that uses useSearchParams
-function SubjectSearchWrapper({ params }: { params: { id: string } }) {
-  const searchParams = useSearchParams()
-
-  return <SubjectSearchContent params={params} searchParams={searchParams} />
 }

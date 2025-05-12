@@ -18,7 +18,7 @@ import {
   Filter,
 } from "lucide-react"
 import Link from "next/link"
-import { useRouter, type ReadonlyURLSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 
 import { db } from "@/app/firebase"
@@ -55,13 +55,8 @@ interface Resource {
   isGeneral?: boolean
 }
 
-export default function SubjectSearchContent({
-  params,
-  searchParams,
-}: {
-  params: { id: string }
-  searchParams: ReadonlyURLSearchParams
-}) {
+export default function SubjectSearchContent({ params }: { params: { id: string } }) {
+  const searchParams = useSearchParams()
   const [subject, setSubject] = useState<Subject | null>(null)
   const [resources, setResources] = useState<Resource[]>([])
   const [filteredResources, setFilteredResources] = useState<Resource[]>([])
