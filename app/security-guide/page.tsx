@@ -19,7 +19,7 @@ export default function SecurityGuidePage() {
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-50 to-white">
-
+      <Navbar />
       <main className="flex-1 container py-8">
         <div className="flex flex-col items-center justify-center text-center mb-8">
           <h1 className="text-4xl font-bold tracking-tight text-primary mb-4">Security Guide</h1>

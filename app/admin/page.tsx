@@ -76,7 +76,7 @@ export default function AdminPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col bg-gradient-to-b from-sky-50 to-white dark:from-gray-900 dark:to-gray-950 animate-gradient-x">
-      
+        <Navbar />
         <main className="flex-1 container py-8 flex items-center justify-center">
           <Card className="w-full max-w-md">
             <CardHeader className="text-center">

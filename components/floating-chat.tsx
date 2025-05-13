@@ -212,8 +212,6 @@ export function FloatingChat() {
   useEffect(() => {
     if (!isOpen || !isAuthenticated) return
 
-    let unsubscribeFunction: (() => void) | undefined
-
     const loadCachedMessages = () => {
       try {
         const cachedData = localStorage.getItem("chatMessages")
@@ -232,11 +230,11 @@ export function FloatingChat() {
 
             // Still fetch latest messages in the background
             if (activeTab === "general") {
-              unsubscribeFunction = setupGeneralChatListener(true)
+              setupGeneralChatListener(true)
             } else if (activeTab === "subjects" && activeSubject) {
-              unsubscribeFunction = setupSubjectChatListener(activeSubject, true)
+              setupSubjectChatListener(activeSubject, true)
             } else if (activeTab === "private" && activeChatRoom) {
-              unsubscribeFunction = setupPrivateChatListener(activeChatRoom, true)
+              setupPrivateChatListener(activeChatRoom, true)
             }
 
             return true
@@ -255,20 +253,14 @@ export function FloatingChat() {
     // If no cache or cache is old, load from server
     if (!loadedFromCache) {
       if (activeTab === "general") {
-        unsubscribeFunction = setupGeneralChatListener()
+        setupGeneralChatListener()
       } else if (activeTab === "subjects" && activeSubject) {
-        unsubscribeFunction = setupSubjectChatListener(activeSubject)
+        setupSubjectChatListener(activeSubject)
       } else if (activeTab === "private" && activeChatRoom) {
-        unsubscribeFunction = setupPrivateChatListener(activeChatRoom)
+        setupPrivateChatListener(activeChatRoom)
       }
     }
-
-    return () => {
-      if (typeof unsubscribeFunction === "function") {
-        unsubscribeFunction()
-      }
-    }
-  }, [isOpen, isAuthenticated, activeTab, activeSubject, activeChatRoom])
+  }, [isOpen, isAuthenticated])
 
   // Save messages to local storage whenever they change, but throttled
   useEffect(() => {
@@ -333,8 +325,6 @@ export function FloatingChat() {
   useEffect(() => {
     if (!isOpen || !isAuthenticated || !currentUser) return
 
-    let unsubscribeFunction: (() => void) | undefined
-
     const fetchChatRooms = async () => {
       try {
         const chatRoomsQuery = query(
@@ -370,18 +360,15 @@ export function FloatingChat() {
           }
         })
 
-        unsubscribeFunction = unsubscribe
+        return unsubscribe
       } catch (error) {
         console.error("Error fetching chat rooms:", error)
       }
     }
 
-    fetchChatRooms()
-
+    const unsubscribe = fetchChatRooms()
     return () => {
-      if (typeof unsubscribeFunction === "function") {
-        unsubscribeFunction()
-      }
+      if (unsubscribe) unsubscribe()
     }
   }, [isOpen, isAuthenticated, currentUser])
 
@@ -389,18 +376,16 @@ export function FloatingChat() {
   useEffect(() => {
     if (!auth.currentUser || !isOpen || !isAuthenticated) return
 
-    let unsubscribeFunction: (() => void) | undefined
-
     // Only set up listeners if they're not already active
     if (activeTab === "general" && !generalListenerActive) {
       setLoading(true)
-      unsubscribeFunction = setupGeneralChatListener()
+      setupGeneralChatListener()
     } else if (activeTab === "subjects" && activeSubject && !subjectListeners[activeSubject]) {
       setLoading(true)
-      unsubscribeFunction = setupSubjectChatListener(activeSubject)
+      setupSubjectChatListener(activeSubject)
     } else if (activeTab === "private" && activeChatRoom && !privateListeners[activeChatRoom]) {
       setLoading(true)
-      unsubscribeFunction = setupPrivateChatListener(activeChatRoom)
+      setupPrivateChatListener(activeChatRoom)
     } else {
       setLoading(false)
       // Scroll to bottom when switching tabs
@@ -412,12 +397,6 @@ export function FloatingChat() {
     // Clear input when switching tabs
     setMessageInput("")
     setWordCount(0)
-
-    return () => {
-      if (typeof unsubscribeFunction === "function") {
-        unsubscribeFunction()
-      }
-    }
   }, [activeTab, activeSubject, activeChatRoom, isOpen, isAuthenticated])
 
   // Setup general chat listener
@@ -801,8 +780,6 @@ export function FloatingChat() {
 
   // Handle scroll to detect when user reaches the top
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    e.stopPropagation() // Prevent scroll propagation to parent elements
-
     const { scrollTop } = e.currentTarget
 
     // If scrolled to top (with a small threshold), load more messages

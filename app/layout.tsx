@@ -6,9 +6,6 @@ import "@/styles/typography.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { FloatingChat } from "@/components/floating-chat"
 import { NotificationSystem } from "@/components/notification-system"
-import FloatingNotificationButton from "@/components/floating-notification-button"
-import { PageTransition } from "@/components/page-transition"
-import { Navbar } from "@/components/navbar"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -26,16 +23,12 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <PageTransition>
-            <Navbar />
-            {children}
-            <FloatingNotificationButton />
-            <FloatingChat />
-          </PageTransition>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          {children}
         </ThemeProvider>
         {/* Notification system */}
         <NotificationSystem />
+        <FloatingChat />
       </body>
     </html>
   )
