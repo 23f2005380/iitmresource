@@ -66,25 +66,23 @@ service cloud.firestore {
     
     // Chat Rooms - require login
     match /chatRooms/{roomId} {
-      // Allow any signed-in user to read chat room data
-      allow read: if isSignedIn();
+      allow read: if isSignedIn() && (
+        // Only participants can read chat room details
+        request.auth.token.email in resource.data.participants
+      );
       
-      // Allow any signed-in user to create a chat room
       allow create: if isSignedIn() && (
+        // Anyone can create a chat room, but they must be a participant
         request.resource.data.createdBy == request.auth.token.email &&
         request.auth.token.email in request.resource.data.participants
       );
       
-      // Critical fix: Allow updating participants array for joining rooms
       allow update: if isSignedIn() && (
-        // Allow creator or admin to update
-        resource.data.createdBy == request.auth.token.email || 
-        isAdmin() ||
-        // Allow joining (adding self to participants)
-        (request.resource.data.participants.hasAll(resource.data.participants) && 
-         resource.data.participants.size() < request.resource.data.participants.size() &&
-         request.resource.data.createdBy == resource.data.createdBy &&
-         request.resource.data.name == resource.data.name)
+        // Only allow adding participants, not removing them
+        resource.data.participants.hasAll(request.resource.data.participants) &&
+        request.resource.data.participants.hasAll(resource.data.participants) &&
+        request.resource.data.participants.size() > resource.data.participants.size() &&
+        request.resource.data.createdBy == resource.data.createdBy
       );
       
       allow delete: if isSignedIn() && (
@@ -110,14 +108,6 @@ service cloud.firestore {
       allow read: if isSignedIn() && resource.data.userId == request.auth.token.email;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.token.email;
       allow update, delete: if isSignedIn() && resource.data.userId == request.auth.token.email;
-    }
-    
-    // Notifications - allow read/write for the recipient
-    match /notifications/{notificationId} {
-      allow read: if isSignedIn() && resource.data.recipientEmail == request.auth.token.email;
-      allow create: if isSignedIn() && (isAdmin() || request.resource.data.senderEmail == request.auth.token.email);
-      allow update: if isSignedIn() && resource.data.recipientEmail == request.auth.token.email;
-      allow delete: if isSignedIn() && (isAdmin() || resource.data.recipientEmail == request.auth.token.email);
     }
     
     // Other collections

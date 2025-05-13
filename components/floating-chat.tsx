@@ -18,7 +18,6 @@ import {
   doc as firestoreDoc,
   getDoc,
   updateDoc,
-  arrayUnion,
 } from "firebase/firestore"
 import {
   Send,
@@ -949,27 +948,11 @@ export function FloatingChat() {
   const handleJoinChatRoom = async (roomId: string) => {
     if (!auth.currentUser) return
 
-    // Extract just the room ID from the full URL if needed
-    let roomIdToJoin = roomId || joinChatRoomId.trim()
-
-    // Handle full URLs by extracting just the chatRoom parameter
-    if (roomIdToJoin.includes("?chatRoom=")) {
-      try {
-        const urlParts = roomIdToJoin.split("?chatRoom=")
-        roomIdToJoin = urlParts[1].split("&")[0]
-      } catch (error) {
-        console.error("Error parsing URL:", error)
-      }
-    } else if (roomIdToJoin.includes("/")) {
-      // If it's a URL but doesn't have the query parameter format
-      // Just take the last segment as the ID
-      roomIdToJoin = roomIdToJoin.split("/").pop() || ""
-    }
-
+    const roomIdToJoin = roomId || joinChatRoomId.trim()
     if (!roomIdToJoin) {
       toast({
         title: "Room ID required",
-        description: "Please enter a valid chat room ID to join",
+        description: "Please enter a chat room ID to join",
         variant: "destructive",
       })
       return
@@ -1005,9 +988,9 @@ export function FloatingChat() {
         return
       }
 
-      // Add user to participants - using arrayUnion for atomic update
+      // Add user to participants
       await updateDoc(roomRef, {
-        participants: arrayUnion(auth.currentUser.email),
+        participants: [...roomData.participants, auth.currentUser.email],
       })
 
       toast({
@@ -1023,7 +1006,7 @@ export function FloatingChat() {
       console.error("Error joining chat room:", error)
       toast({
         title: "Error joining chat room",
-        description: "Please try again. Error: " + (error as Error).message,
+        description: "Please try again",
         variant: "destructive",
       })
     } finally {
@@ -1146,8 +1129,8 @@ export function FloatingChat() {
         position: "fixed",
         bottom: "6rem",
         right: "1.5rem",
-        width: "min(90vw, 22rem)",
-        height: "min(80vh, 30rem)",
+        width: "22rem",
+        height: "30rem",
         maxWidth: "calc(100vw - 3rem)",
         zIndex: 40, // Below navbar (z-index 50)
       }
@@ -1166,32 +1149,27 @@ export function FloatingChat() {
             className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-sm rounded-xl shadow-lg border border-gray-100 dark:border-gray-700 flex flex-col overflow-hidden"
           >
             <Tabs value={activeTab} onValueChange={handleTabChange} className="flex flex-col h-full w-full">
-              <div className="border-b px-3 py-2 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm flex items-center justify-between">
+              <div className="border-b px-4 py-3 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm flex items-center justify-between">
                 <TabsList className="grid grid-cols-3 w-full max-w-md rounded-lg bg-gray-100/80 dark:bg-gray-700/80 p-1">
-                  <TabsTrigger value="general" className="flex items-center gap-1 rounded-md text-xs sm:text-sm">
-                    <MessageSquare className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                    <span className="hidden xs:inline">General</span>
+                  <TabsTrigger value="general" className="flex items-center gap-2 rounded-md text-sm">
+                    <MessageSquare className="h-3.5 w-3.5" />
+                    General
                   </TabsTrigger>
-                  <TabsTrigger value="subjects" className="flex items-center gap-1 rounded-md text-xs sm:text-sm">
-                    <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                    <span className="hidden xs:inline">Subjects</span>
+                  <TabsTrigger value="subjects" className="flex items-center gap-2 rounded-md text-sm">
+                    <Users className="h-3.5 w-3.5" />
+                    Subjects
                   </TabsTrigger>
-                  <TabsTrigger value="private" className="flex items-center gap-1 rounded-md text-xs sm:text-sm">
-                    <UserPlus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                    <span className="hidden xs:inline">Private</span>
+                  <TabsTrigger value="private" className="flex items-center gap-2 rounded-md text-sm">
+                    <UserPlus className="h-3.5 w-3.5" />
+                    Private
                   </TabsTrigger>
                 </TabsList>
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="icon" onClick={toggleExpandedMode} className="h-7 w-7 sm:h-8 sm:w-8">
-                    {isExpanded ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                  <Button variant="ghost" size="icon" onClick={toggleExpandedMode} className="h-8 w-8">
+                    {isExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                   </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setIsOpen(false)}
-                    className="h-7 w-7 sm:h-8 sm:w-8"
-                  >
-                    <X className="h-3.5 w-3.5" />
+                  <Button variant="ghost" size="icon" onClick={() => setIsOpen(false)} className="h-8 w-8">
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
@@ -1268,7 +1246,7 @@ export function FloatingChat() {
                               <div
                                 className={`flex gap-2 max-w-[90%] ${isCurrentUser(msg.sender) ? "flex-row-reverse" : "flex-row"}`}
                               >
-                                <Avatar className="h-6 w-6 sm:h-7 sm:w-7 border-2 border-white dark:border-gray-800 shadow-sm flex-shrink-0">
+                                <Avatar className="h-7 w-7 border-2 border-white dark:border-gray-800 shadow-sm">
                                   {msg.photoURL ? (
                                     <AvatarImage src={msg.photoURL || "/placeholder.svg"} alt={msg.senderName} />
                                   ) : (
@@ -1277,16 +1255,14 @@ export function FloatingChat() {
                                     </AvatarFallback>
                                   )}
                                 </Avatar>
-                                <div className="max-w-full">
+                                <div>
                                   <div
-                                    className={`flex items-center gap-1 mb-1 ${isCurrentUser(msg.sender) ? "justify-end" : "justify-start"}`}
+                                    className={`flex items-center gap-2 mb-1 ${isCurrentUser(msg.sender) ? "justify-end" : "justify-start"}`}
                                   >
                                     <span className="text-xs text-muted-foreground">
                                       {formatTimestamp(msg.timestamp)}
                                     </span>
-                                    <span className="text-xs font-medium truncate max-w-[100px] sm:max-w-[150px]">
-                                      {msg.senderName}
-                                    </span>
+                                    <span className="text-xs font-medium">{msg.senderName}</span>
                                     {isCurrentUser(msg.sender) && (
                                       <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
@@ -1313,7 +1289,7 @@ export function FloatingChat() {
                                         : "bg-gray-100 dark:bg-gray-700 rounded-tl-none"
                                     }`}
                                   >
-                                    <p className="text-xs sm:text-sm whitespace-pre-wrap break-words leading-relaxed">
+                                    <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
                                       {msg.content}
                                     </p>
                                   </div>
@@ -1334,16 +1310,16 @@ export function FloatingChat() {
                           placeholder="Type your message..."
                           value={messageInput}
                           onChange={handleInputChange}
-                          className="flex-1 border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-xs sm:text-sm"
+                          className="flex-1 border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-sm"
                         />
                         <Button
                           type="submit"
                           size="sm"
-                          className="rounded-full px-2 sm:px-3 text-xs h-7 sm:h-8"
+                          className="rounded-full px-3 text-xs h-8"
                           disabled={!messageInput.trim() || wordCount > 100}
                         >
-                          <Send className="h-3 w-3 sm:h-3.5 sm:w-3.5 sm:mr-1" />
-                          <span className="hidden sm:inline">Send</span>
+                          <Send className="h-3.5 w-3.5 mr-1" />
+                          Send
                         </Button>
                       </div>
                       <div className="text-xs text-right text-muted-foreground px-1">
@@ -1361,7 +1337,7 @@ export function FloatingChat() {
                 >
                   <div className="flex h-full w-full">
                     {/* Desktop sidebar */}
-                    <div className="hidden md:flex w-40 lg:w-48 border-r h-full overflow-hidden flex flex-col bg-gray-50/80 dark:bg-gray-900/50 backdrop-blur-sm">
+                    <div className="hidden md:flex w-48 border-r h-full overflow-hidden flex flex-col bg-gray-50/80 dark:bg-gray-900/50 backdrop-blur-sm">
                       <div className="p-2 border-b bg-white/70 dark:bg-gray-800/70">
                         <h3 className="font-medium flex items-center gap-2 text-xs">
                           <Users className="h-3.5 w-3.5 text-primary" />
@@ -1393,13 +1369,13 @@ export function FloatingChat() {
                       <div className="md:hidden flex items-center justify-between p-2 border-b bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm">
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-primary" />
-                          <h3 className="font-medium text-sm truncate max-w-[150px]">{getActiveSubjectName()}</h3>
+                          <h3 className="font-medium text-sm">{getActiveSubjectName()}</h3>
                         </div>
                         <Sheet open={isMobileSubjectListOpen} onOpenChange={setIsMobileSubjectListOpen}>
                           <SheetTrigger asChild>
                             <Button variant="outline" size="sm" className="flex items-center gap-1 text-xs h-7 px-2">
                               <Menu className="h-3.5 w-3.5" />
-                              <span className="hidden xs:inline">Select Subject</span>
+                              Select Subject
                             </Button>
                           </SheetTrigger>
                           <SheetContent side="left" className="w-[80%] sm:w-[350px] p-0">
@@ -1508,7 +1484,7 @@ export function FloatingChat() {
                                   <div
                                     className={`flex gap-2 max-w-[90%] ${isCurrentUser(msg.sender) ? "flex-row-reverse" : "flex-row"}`}
                                   >
-                                    <Avatar className="h-6 w-6 sm:h-7 sm:w-7 border-2 border-white dark:border-gray-800 shadow-sm flex-shrink-0">
+                                    <Avatar className="h-7 w-7 border-2 border-white dark:border-gray-800 shadow-sm">
                                       {msg.photoURL ? (
                                         <AvatarImage src={msg.photoURL || "/placeholder.svg"} alt={msg.senderName} />
                                       ) : (
@@ -1517,16 +1493,14 @@ export function FloatingChat() {
                                         </AvatarFallback>
                                       )}
                                     </Avatar>
-                                    <div className="max-w-full">
+                                    <div>
                                       <div
-                                        className={`flex items-center gap-1 mb-1 ${isCurrentUser(msg.sender) ? "justify-end" : "justify-start"}`}
+                                        className={`flex items-center gap-2 mb-1 ${isCurrentUser(msg.sender) ? "justify-end" : "justify-start"}`}
                                       >
                                         <span className="text-xs text-muted-foreground">
                                           {formatTimestamp(msg.timestamp)}
                                         </span>
-                                        <span className="text-xs font-medium truncate max-w-[100px] sm:max-w-[150px]">
-                                          {msg.senderName}
-                                        </span>
+                                        <span className="text-xs font-medium">{msg.senderName}</span>
                                         {isCurrentUser(msg.sender) && (
                                           <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -1553,7 +1527,7 @@ export function FloatingChat() {
                                             : "bg-gray-100 dark:bg-gray-700 rounded-tl-none"
                                         }`}
                                       >
-                                        <p className="text-xs sm:text-sm whitespace-pre-wrap break-words leading-relaxed">
+                                        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
                                           {msg.content}
                                         </p>
                                       </div>
@@ -1579,16 +1553,16 @@ export function FloatingChat() {
                               placeholder="Type your message..."
                               value={messageInput}
                               onChange={handleInputChange}
-                              className="flex-1 border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-xs sm:text-sm"
+                              className="flex-1 border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-sm"
                             />
                             <Button
                               type="submit"
                               size="sm"
-                              className="rounded-full px-2 sm:px-3 text-xs h-7 sm:h-8"
+                              className="rounded-full px-3 text-xs h-8"
                               disabled={!messageInput.trim() || !activeSubject || wordCount > 100}
                             >
-                              <Send className="h-3 w-3 sm:h-3.5 sm:w-3.5 sm:mr-1" />
-                              <span className="hidden sm:inline">Send</span>
+                              <Send className="h-3.5 w-3.5 mr-1" />
+                              Send
                             </Button>
                           </div>
                           <div className="text-xs text-right text-muted-foreground px-1">
@@ -1608,7 +1582,7 @@ export function FloatingChat() {
                 >
                   <div className="flex h-full w-full">
                     {/* Desktop sidebar */}
-                    <div className="hidden md:flex w-40 lg:w-48 border-r h-full overflow-hidden flex flex-col bg-gray-50/80 dark:bg-gray-900/50 backdrop-blur-sm">
+                    <div className="hidden md:flex w-48 border-r h-full overflow-hidden flex flex-col bg-gray-50/80 dark:bg-gray-900/50 backdrop-blur-sm">
                       <div className="p-2 border-b bg-white/70 dark:bg-gray-800/70">
                         <h3 className="font-medium flex items-center gap-2 text-xs">
                           <UserPlus className="h-3.5 w-3.5 text-primary" />
@@ -1747,7 +1721,7 @@ export function FloatingChat() {
                       <div className="md:hidden flex items-center justify-between p-2 border-b bg-white/70 dark:bg-gray-800/70 backdrop-blur-sm">
                         <div className="flex items-center gap-2">
                           <UserPlus className="h-4 w-4 text-primary" />
-                          <h3 className="font-medium text-sm truncate max-w-[120px]">{getActiveChatRoomName()}</h3>
+                          <h3 className="font-medium text-sm">{getActiveChatRoomName()}</h3>
                         </div>
                         <div className="flex items-center gap-1">
                           {activeChatRoom && (
@@ -1758,14 +1732,14 @@ export function FloatingChat() {
                               onClick={() => copyRoomLink(activeChatRoom)}
                             >
                               <Copy className="h-3 w-3 mr-1" />
-                              <span className="hidden xs:inline">Share</span>
+                              Share
                             </Button>
                           )}
                           <Sheet open={isMobileChatRoomListOpen} onOpenChange={setIsMobileChatRoomListOpen}>
                             <SheetTrigger asChild>
                               <Button variant="outline" size="sm" className="flex items-center gap-1 text-xs h-7 px-2">
                                 <Menu className="h-3.5 w-3.5" />
-                                <span className="hidden xs:inline">Chats</span>
+                                Chats
                               </Button>
                             </SheetTrigger>
                             <SheetContent side="left" className="w-[80%] sm:w-[350px] p-0">
@@ -1983,7 +1957,7 @@ export function FloatingChat() {
                                   <div
                                     className={`flex gap-2 max-w-[90%] ${isCurrentUser(msg.sender) ? "flex-row-reverse" : "flex-row"}`}
                                   >
-                                    <Avatar className="h-6 w-6 sm:h-7 sm:w-7 border-2 border-white dark:border-gray-800 shadow-sm flex-shrink-0">
+                                    <Avatar className="h-7 w-7 border-2 border-white dark:border-gray-800 shadow-sm">
                                       {msg.photoURL ? (
                                         <AvatarImage src={msg.photoURL || "/placeholder.svg"} alt={msg.senderName} />
                                       ) : (
@@ -1992,16 +1966,14 @@ export function FloatingChat() {
                                         </AvatarFallback>
                                       )}
                                     </Avatar>
-                                    <div className="max-w-full">
+                                    <div>
                                       <div
-                                        className={`flex items-center gap-1 mb-1 ${isCurrentUser(msg.sender) ? "justify-end" : "justify-start"}`}
+                                        className={`flex items-center gap-2 mb-1 ${isCurrentUser(msg.sender) ? "justify-end" : "justify-start"}`}
                                       >
                                         <span className="text-xs text-muted-foreground">
                                           {formatTimestamp(msg.timestamp)}
                                         </span>
-                                        <span className="text-xs font-medium truncate max-w-[100px] sm:max-w-[150px]">
-                                          {msg.senderName}
-                                        </span>
+                                        <span className="text-xs font-medium">{msg.senderName}</span>
                                         {isCurrentUser(msg.sender) && (
                                           <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -2028,7 +2000,7 @@ export function FloatingChat() {
                                             : "bg-gray-100 dark:bg-gray-700 rounded-tl-none"
                                         }`}
                                       >
-                                        <p className="text-xs sm:text-sm whitespace-pre-wrap break-words leading-relaxed">
+                                        <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
                                           {msg.content}
                                         </p>
                                       </div>
@@ -2054,17 +2026,17 @@ export function FloatingChat() {
                               placeholder="Type your message..."
                               value={messageInput}
                               onChange={handleInputChange}
-                              className="flex-1 border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-xs sm:text-sm"
+                              className="flex-1 border-0 shadow-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent text-sm"
                               disabled={!activeChatRoom}
                             />
                             <Button
                               type="submit"
                               size="sm"
-                              className="rounded-full px-2 sm:px-3 text-xs h-7 sm:h-8"
+                              className="rounded-full px-3 text-xs h-8"
                               disabled={!messageInput.trim() || !activeChatRoom || wordCount > 100}
                             >
-                              <Send className="h-3 w-3 sm:h-3.5 sm:w-3.5 sm:mr-1" />
-                              <span className="hidden sm:inline">Send</span>
+                              <Send className="h-3.5 w-3.5 mr-1" />
+                              Send
                             </Button>
                           </div>
                           <div className="text-xs text-right text-muted-foreground px-1">

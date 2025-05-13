@@ -5,7 +5,7 @@ import { Bell, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { db, auth } from "@/app/firebase"
+import { db, auth } from "@/lib/firebase"
 import {
   collection,
   query,
@@ -38,46 +38,32 @@ export default function FloatingNotificationButton() {
     if (!user) return
 
     setLoading(true)
-    console.log("Loading notifications for user:", user.email)
 
-    try {
-      const q = query(
-        collection(db, "notifications"),
-        where("recipientEmail", "==", user.email),
-        orderBy("createdAt", "desc"),
-      )
+    const q = query(
+      collection(db, "notifications"),
+      where("recipientEmail", "==", user.email),
+      orderBy("createdAt", "desc"),
+    )
 
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          console.log("Notification snapshot received, docs:", snapshot.docs.length)
-          const notifs = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }))
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const notifs = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
 
-          setNotifications(notifs)
+      setNotifications(notifs)
 
-          // Count unread notifications
-          const unread = notifs.filter((notif: any) => !notif.read).length
-          setUnreadCount(unread)
+      // Count unread notifications
+      const unread = notifs.filter((notif: any) => !notif.read).length
+      setUnreadCount(unread)
 
-          setLoading(false)
-        },
-        (error) => {
-          console.error("Error in notification listener:", error)
-          setLoading(false)
-        },
-      )
-
-      return () => {
-        if (typeof unsubscribe === "function") {
-          unsubscribe()
-        }
-      }
-    } catch (error) {
-      console.error("Error setting up notification listener:", error)
       setLoading(false)
+    })
+
+    return () => {
+      if (typeof unsubscribe === "function") {
+        unsubscribe()
+      }
     }
   }, [user])
 

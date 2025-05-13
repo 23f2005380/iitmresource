@@ -270,7 +270,7 @@ export default function AdminNotificationsPage() {
 
   return (
     <div className="min-h-screen flex flex-col">
-     
+      <Navbar />
       <main className="flex-1 container py-4 md:py-8 px-2 md:px-4">
         <div className="flex items-center gap-2 mb-6">
           <Link href="/admin">
