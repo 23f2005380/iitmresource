@@ -9,7 +9,6 @@ import { NotificationSystem } from "@/components/notification-system"
 import FloatingNotificationButton from "@/components/floating-notification-button"
 import { PageTransition } from "@/components/page-transition"
 import { Navbar } from "@/components/navbar"
-import Suspense from "react"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -28,14 +27,12 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        <Suspense>
           <PageTransition>
             <Navbar />
             {children}
             <FloatingNotificationButton />
             <FloatingChat />
           </PageTransition>
-          </Suspense>
         </ThemeProvider>
         {/* Notification system */}
         <NotificationSystem />
