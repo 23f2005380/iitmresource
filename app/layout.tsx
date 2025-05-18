@@ -1,34 +1,34 @@
-import type React from "react"
-import type { Metadata } from "next"
-import { Inter } from "next/font/google"
 import "./globals.css"
-import "@/styles/typography.css"
+import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
-import { FloatingChat } from "@/components/floating-chat"
-import { NotificationSystem } from "@/components/notification-system"
+import { Toaster } from "@/components/ui/toaster"
+import { FloatingNotificationButton } from "@/components/floating-notification-button"
 
 const inter = Inter({ subsets: ["latin"] })
 
-export const metadata: Metadata = {
+export const metadata = {
   title: "IITM BS Resource Hub",
-  description: "Share and discover resources for IITM BS courses",
+  description: "A community-driven platform for IITM BS in Data Science and Applications students",
     generator: 'v0.dev'
 }
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className={inter.className}>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
+          <FloatingNotificationButton />
+          <Toaster />
         </ThemeProvider>
-        {/* Notification system */}
-        <NotificationSystem />
-        <FloatingChat />
       </body>
     </html>
   )

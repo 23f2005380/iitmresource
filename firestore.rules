@@ -12,107 +12,93 @@ service cloud.firestore {
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    // User profiles
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    // Users collection
     match /users/{userId} {
       allow read;
-      allow create, update, delete: if isAdmin() || request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow update: if isAdmin() || isOwner(userId);
+      allow delete: if isAdmin();
     }
     
-    // Subjects - publicly readable
+    // Subjects collection
     match /subjects/{subjectId} {
       allow read;
-      allow create, update, delete: if isAdmin();
+      allow write: if isAdmin();
     }
     
-    // Resources - publicly readable
+    // Resources collection
     match /resources/{resourceId} {
       allow read;
       allow create: if isSignedIn();
-      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.token.email);
+      allow update: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.token.email);
+      allow delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.token.email);
     }
     
-    // Comments - require login
+    // Comments collection
     match /comments/{commentId} {
       allow read;
       allow create: if isSignedIn();
       allow update, delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.token.email);
     }
     
-    // Chats - require login
+    // Chat messages
     match /chats/{chatId} {
-      allow read: if isSignedIn() && (
-        // General and subject chats are readable by all signed-in users
-        (resource.data.chatRoomId == null) || 
-        // Private chats are only readable by participants
-        (resource.data.chatRoomId != null && 
-         exists(/databases/$(database)/documents/chatRooms/$(resource.data.chatRoomId)) && 
-         request.auth.token.email in get(/databases/$(database)/documents/chatRooms/$(resource.data.chatRoomId)).data.participants)
-      );
-      
-      allow create: if isSignedIn() && (
-        // Anyone can create general or subject chat messages
-        (request.resource.data.chatRoomId == null && request.resource.data.sender == request.auth.token.email) ||
-        // For private chats, user must be a participant
-        (request.resource.data.chatRoomId != null && 
-         exists(/databases/$(database)/documents/chatRooms/$(request.resource.data.chatRoomId)) && 
-         request.auth.token.email in get(/databases/$(database)/documents/chatRooms/$(request.resource.data.chatRoomId)).data.participants &&
-         request.resource.data.sender == request.auth.token.email)
-      );
-      
-      allow update, delete: if isSignedIn() && (
-        isAdmin() || resource.data.sender == request.auth.token.email
-      );
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isSignedIn() && 
+        ((resource.data.sender == request.auth.token.email) || isAdmin());
     }
     
-    // Chat Rooms - require login
+    // Chat rooms
     match /chatRooms/{roomId} {
-      allow read: if isSignedIn() && (
-        // Only participants can read chat room details
-        request.auth.token.email in resource.data.participants
-      );
-      
-      allow create: if isSignedIn() && (
-        // Anyone can create a chat room, but they must be a participant
-        request.resource.data.createdBy == request.auth.token.email &&
-        request.auth.token.email in request.resource.data.participants
-      );
-      
-      allow update: if isSignedIn() && (
-        // Only allow adding participants, not removing them
-        resource.data.participants.hasAll(request.resource.data.participants) &&
-        request.resource.data.participants.hasAll(resource.data.participants) &&
-        request.resource.data.participants.size() > resource.data.participants.size() &&
-        request.resource.data.createdBy == resource.data.createdBy
-      );
-      
-      allow delete: if isSignedIn() && (
-        isAdmin() || resource.data.createdBy == request.auth.token.email
-      );
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && 
+        (resource.data.createdBy == request.auth.token.email || 
+         isAdmin() || 
+         request.auth.token.email in resource.data.participants);
+      allow delete: if isSigne  || 
+         request.auth.token.email in resource.data.participants);
+      allow delete: if isSignedIn() && 
+        (resource.data.createdBy == request.auth.token.email || isAdmin());
     }
     
-    // Study sessions - publicly readable, but require login to create/modify
+    // Projects collection
+    match /projects/{projectId} {
+      allow read; // Allow anyone to read projects
+      allow create: if isSignedIn(); // Only signed-in users can create
+      allow update: if isSignedIn() && 
+        (request.auth.uid == resource.data.createdBy || isAdmin());
+      allow delete: if isSignedIn() && 
+        (request.auth.uid == resource.data.createdBy || isAdmin());
+    }
+    
+    // Study sessions collection
     match /studySessions/{sessionId} {
-      allow read;
+      allow read: if isSignedIn() && resource.data.userId == request.auth.token.email;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.token.email;
-      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.token.email;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.token.email;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.token.email;
     }
     
-    // Water tracking - require login
-    match /waterTracking/{userId} {
-      allow read: if isSignedIn() && userId == request.auth.token.email;
-      allow create, update: if isSignedIn() && userId == request.auth.token.email;
-    }
-    
-    // Tasks - require login
+    // Tasks collection
     match /tasks/{taskId} {
       allow read: if isSignedIn() && resource.data.userId == request.auth.token.email;
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.token.email;
-      allow update, delete: if isSignedIn() && resource.data.userId == request.auth.token.email;
+      allow update: if isSignedIn() && resource.data.userId == request.auth.token.email;
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.token.email;
     }
     
-    // Other collections
-    match /{document=**} {
-      allow read, write: if isAdmin();
+    // Water tracking collection
+    match /waterTracking/{userId} {
+      allow read: if isSignedIn() && userId == request.auth.token.email;
+      allow create: if isSignedIn() && userId == request.auth.token.email;
+      allow update: if isSignedIn() && userId == request.auth.token.email;
+      allow delete: if isSignedIn() && userId == request.auth.token.email;
     }
   }
 }

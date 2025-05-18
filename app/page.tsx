@@ -23,7 +23,6 @@ import { useToast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { Leaderboard } from "@/components/leaderboard"
 import { RecentContributions } from "@/components/recent-contributions"
-import { NotificationSystem } from "@/components/notification-system"
 
 interface Subject {
   id: string
@@ -600,9 +599,6 @@ export default function Home() {
           </p>
         </div>
       </footer>
-
-      {/* Notification System */}
-      <NotificationSystem />
     </div>
   )
 }
