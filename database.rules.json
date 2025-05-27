@@ -1,9 +1,11 @@
 {
   "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
     "notifications": {
-      "$user": {
-        ".read": "$user === auth.token.email.replace('.', ',')",
-        ".write": "$user === auth.token.email.replace('.', ',') || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      "$userEmail": {
+        ".read": "auth != null && (auth.token.email.replace('.', ',') === $userEmail || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (auth.token.email.replace('.', ',') === $userEmail || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
     },
     "notificationReplies": {
@@ -14,36 +16,30 @@
     },
     "chats": {
       "$chatId": {
-        ".read": "auth != null && (data.child('members').child(auth.token.email.replace('.', ',')).exists() || root.child('users').child(auth.uid).child('role').val() === 'admin')",
-        ".write": "auth != null && (data.child('members').child(auth.token.email.replace('.', ',')).exists() || !data.exists() || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".read": "auth != null && (data.child('members').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (data.child('members').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'admin')",
         "messages": {
-          ".read": "auth != null && (root.child('chats').child($chatId).child('members').child(auth.token.email.replace('.', ',')).exists() || root.child('users').child(auth.uid).child('role').val() === 'admin')",
-          ".write": "auth != null && (root.child('chats').child($chatId).child('members').child(auth.token.email.replace('.', ',')).exists() || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+          ".read": "auth != null && (root.child('chats').child($chatId).child('members').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+          ".write": "auth != null && (root.child('chats').child($chatId).child('members').child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'admin')"
         }
       }
     },
+    "chatMembers": {
+      "$chatId": {
+        ".read": "auth != null && (data.child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && (data.child(auth.uid).exists() || root.child('users').child(auth.uid).child('role').val() === 'admin')"
+      }
+    },
     "userChats": {
-      "$user": {
-        ".read": "$user === auth.token.email.replace('.', ',') || root.child('users').child(auth.uid).child('role').val() === 'admin'",
-        ".write": "$user === auth.token.email.replace('.', ',') || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+      "$uid": {
+        ".read": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
     },
-    "studySessions": {
+    "studyTrackers": {
       "$uid": {
-        ".read": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'",
-        ".write": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'"
-      }
-    },
-    "tasks": {
-      "$uid": {
-        ".read": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'",
-        ".write": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'"
-      }
-    },
-    "waterTracking": {
-      "$uid": {
-        ".read": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'",
-        ".write": "$uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin'"
+        ".read": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin')",
+        ".write": "auth != null && ($uid === auth.uid || root.child('users').child(auth.uid).child('role').val() === 'admin')"
       }
     }
   }

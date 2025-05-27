@@ -34,6 +34,7 @@ import { Github, Globe, Heart, MessageSquare, Share2, Trash2, Plus, Loader2, Sen
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { BookmarkButton } from "@/components/bookmark-button"
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState([])
@@ -397,10 +398,133 @@ export default function ProjectsPage() {
         <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
           <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange} className="w-full">
             {renderTabs()}
+            <div className="flex justify-center md:justify-end w-full md:w-auto mt-8 md:mt-0">
+              {user ? (
+                <Dialog open={formOpen} onOpenChange={setFormOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Project
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[550px]">
+                    <DialogHeader>
+                      <DialogTitle>Add New Project</DialogTitle>
+                      <DialogDescription>
+                        Share your project with the IITM community. Fill in the details below.
+                      </DialogDescription>
+                    </DialogHeader>
 
+                    <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+                      <div className="space-y-2">
+                        <label htmlFor="title" className="text-sm font-medium">
+                          Project Title *
+                        </label>
+                        <Input
+                          id="title"
+                          name="title"
+                          value={formData.title}
+                          onChange={handleInputChange}
+                          placeholder="Enter project title"
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label htmlFor="description" className="text-sm font-medium">
+                          Description *
+                        </label>
+                        <Textarea
+                          id="description"
+                          name="description"
+                          value={formData.description}
+                          onChange={handleInputChange}
+                          placeholder="Describe your project"
+                          rows={4}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label htmlFor="imageUrl" className="text-sm font-medium">
+                          Image URL
+                        </label>
+                        <Input
+                          id="imageUrl"
+                          name="imageUrl"
+                          value={formData.imageUrl}
+                          onChange={handleInputChange}
+                          placeholder="https://example.com/image.jpg"
+                        />
+                        <p className="text-xs text-muted-foreground">Provide a URL to an image of your project</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label htmlFor="projectUrl" className="text-sm font-medium">
+                            Project URL
+                          </label>
+                          <Input
+                            id="projectUrl"
+                            name="projectUrl"
+                            value={formData.projectUrl}
+                            onChange={handleInputChange}
+                            placeholder="https://yourproject.com"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label htmlFor="githubUrl" className="text-sm font-medium">
+                            GitHub URL
+                          </label>
+                          <Input
+                            id="githubUrl"
+                            name="githubUrl"
+                            value={formData.githubUrl}
+                            onChange={handleInputChange}
+                            placeholder="https://github.com/username/repo"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <label htmlFor="tags" className="text-sm font-medium">
+                          Tags
+                        </label>
+                        <Input
+                          id="tags"
+                          name="tags"
+                          value={formData.tags}
+                          onChange={handleInputChange}
+                          placeholder="web, machine learning, python (comma separated)"
+                        />
+                      </div>
+
+                      <DialogFooter>
+                        <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>
+                          Cancel
+                        </Button>
+                        <Button type="submit" disabled={submitting}>
+                          {submitting ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Submitting...
+                            </>
+                          ) : (
+                            "Submit Project"
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </DialogContent>
+                </Dialog>
+              ) : (
+                <Button onClick={() => router.push("/login")}>Login to Add Project</Button>
+              )}
+            </div>
             <TabsContent value="all" className="mt-6">
               {loading ? (
-                <div className="flex justify-center items-center py-12">
+                <div className="flex py-12">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : projects.length === 0 ? (
@@ -504,131 +628,6 @@ export default function ProjectsPage() {
               </TabsContent>
             )}
           </Tabs>
-
-          <div className="flex justify-center md:justify-end w-full md:w-auto mt-4 md:mt-0">
-            {user ? (
-              <Dialog open={formOpen} onOpenChange={setFormOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Project
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[550px]">
-                  <DialogHeader>
-                    <DialogTitle>Add New Project</DialogTitle>
-                    <DialogDescription>
-                      Share your project with the IITM community. Fill in the details below.
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-                    <div className="space-y-2">
-                      <label htmlFor="title" className="text-sm font-medium">
-                        Project Title *
-                      </label>
-                      <Input
-                        id="title"
-                        name="title"
-                        value={formData.title}
-                        onChange={handleInputChange}
-                        placeholder="Enter project title"
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label htmlFor="description" className="text-sm font-medium">
-                        Description *
-                      </label>
-                      <Textarea
-                        id="description"
-                        name="description"
-                        value={formData.description}
-                        onChange={handleInputChange}
-                        placeholder="Describe your project"
-                        rows={4}
-                        required
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label htmlFor="imageUrl" className="text-sm font-medium">
-                        Image URL
-                      </label>
-                      <Input
-                        id="imageUrl"
-                        name="imageUrl"
-                        value={formData.imageUrl}
-                        onChange={handleInputChange}
-                        placeholder="https://example.com/image.jpg"
-                      />
-                      <p className="text-xs text-muted-foreground">Provide a URL to an image of your project</p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <label htmlFor="projectUrl" className="text-sm font-medium">
-                          Project URL
-                        </label>
-                        <Input
-                          id="projectUrl"
-                          name="projectUrl"
-                          value={formData.projectUrl}
-                          onChange={handleInputChange}
-                          placeholder="https://yourproject.com"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <label htmlFor="githubUrl" className="text-sm font-medium">
-                          GitHub URL
-                        </label>
-                        <Input
-                          id="githubUrl"
-                          name="githubUrl"
-                          value={formData.githubUrl}
-                          onChange={handleInputChange}
-                          placeholder="https://github.com/username/repo"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label htmlFor="tags" className="text-sm font-medium">
-                        Tags
-                      </label>
-                      <Input
-                        id="tags"
-                        name="tags"
-                        value={formData.tags}
-                        onChange={handleInputChange}
-                        placeholder="web, machine learning, python (comma separated)"
-                      />
-                    </div>
-
-                    <DialogFooter>
-                      <Button type="button" variant="outline" onClick={() => setFormOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button type="submit" disabled={submitting}>
-                        {submitting ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Submitting...
-                          </>
-                        ) : (
-                          "Submit Project"
-                        )}
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            ) : (
-              <Button onClick={() => router.push("/login")}>Login to Add Project</Button>
-            )}
-          </div>
         </div>
       </main>
     </div>
@@ -668,32 +667,35 @@ function ProjectCard({
 
       <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
-          <Link href={`/projects/${project.id}`} className="hover:underline">
-            <CardTitle className="text-xl line-clamp-1">{project.title}</CardTitle>
+          <Link href={`/projects/${project.id}`} className="hover:underline flex-1">
+            <CardTitle className="text-xl font-bold line-clamp-1">{project.title}</CardTitle>
           </Link>
-          {isUserProject && (
-            <Button variant="ghost" size="icon" onClick={onDelete} className="h-8 w-8">
-              <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            <BookmarkButton resourceId={project.id} resourceType="project" size="sm" />
+            {isUserProject && (
+              <Button variant="ghost" size="icon" onClick={onDelete} className="h-8 w-8">
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            )}
+          </div>
         </div>
         <CardDescription className="flex items-center gap-2">
           <Avatar className="h-6 w-6">
             <AvatarImage src={project.creatorPhoto || ""} alt={project.creatorName} />
             <AvatarFallback>{project.creatorName?.charAt(0) || "U"}</AvatarFallback>
           </Avatar>
-          <span className="truncate">{project.creatorName}</span>
+          <span className="truncate font-medium">{project.creatorName}</span>
           <span className="text-xs whitespace-nowrap">• {formattedDate}</span>
         </CardDescription>
       </CardHeader>
 
-      <CardContent className="pb-2 flex-grow">
-        <p className="text-sm text-muted-foreground mb-4 line-clamp-3">{project.description}</p>
+      <CardContent className="pb-4 flex-grow px-6">
+        <p className="text-sm text-muted-foreground mb-4 line-clamp-3 leading-relaxed">{project.description}</p>
 
         {project.tags && project.tags.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
             {project.tags.map((tag, index) => (
-              <Badge key={index} variant="secondary" className="text-xs">
+              <Badge key={index} variant="secondary" className="text-xs font-medium">
                 {tag}
               </Badge>
             ))}
@@ -702,7 +704,7 @@ function ProjectCard({
 
         <div className="flex flex-wrap gap-2 mt-auto">
           {project.projectUrl && (
-            <Button variant="outline" size="sm" asChild className="text-xs h-8">
+            <Button variant="outline" size="sm" asChild className="text-xs h-8 font-medium">
               <a href={project.projectUrl} target="_blank" rel="noopener noreferrer">
                 <Globe className="h-3 w-3 mr-1" />
                 View
@@ -711,7 +713,7 @@ function ProjectCard({
           )}
 
           {project.githubUrl && (
-            <Button variant="outline" size="sm" asChild className="text-xs h-8">
+            <Button variant="outline" size="sm" asChild className="text-xs h-8 font-medium">
               <a href={project.githubUrl} target="_blank" rel="noopener noreferrer">
                 <Github className="h-3 w-3 mr-1" />
                 Code
@@ -719,7 +721,7 @@ function ProjectCard({
             </Button>
           )}
 
-          <Button variant="outline" size="sm" asChild className="text-xs h-8 ml-auto">
+          <Button variant="outline" size="sm" asChild className="text-xs h-8 ml-auto font-medium">
             <Link href={`/projects/${project.id}`}>Details</Link>
           </Button>
         </div>

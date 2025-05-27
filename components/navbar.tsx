@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
-import { Menu, X, Home, BookOpen, Users, Award, LogOut, FileText, Code, Shield } from "lucide-react"
+import { Menu, X, Home, BookOpen, Users, Award, LogOut, FileText, Code, Shield, Bookmark } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { auth, db } from "@/app/firebase"
@@ -144,6 +144,19 @@ export function Navbar() {
                 Projects
               </span>
             </Link>
+            {user && (
+              <Link
+                href="/bookmarks"
+                className={`px-3 py-2 text-sm font-medium transition-colors hover:text-primary ${
+                  isActive("/bookmarks") ? "text-primary" : "text-muted-foreground"
+                }`}
+              >
+                <span className="flex items-center gap-1">
+                  <Bookmark className="h-4 w-4" />
+                  Bookmarks
+                </span>
+              </Link>
+            )}
             <Link
               href="/chat"
               className={`px-3 py-2 text-sm font-medium transition-colors hover:text-primary ${
@@ -211,6 +224,12 @@ export function Navbar() {
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link href="/bookmarks">
+                      <Bookmark className="mr-2 h-4 w-4" />
+                      <span>Bookmarks</span>
+                    </Link>
+                  </DropdownMenuItem>
                   {isAdmin && (
                     <>
                       <DropdownMenuItem asChild>
@@ -240,7 +259,7 @@ export function Navbar() {
             <div className="relative z-20 grid gap-6 rounded-md bg-popover p-4 text-popover-foreground shadow-md">
               <div className="flex items-center justify-between">
                 <Link href="/" className="flex items-center space-x-2" onClick={closeMenu}>
-                  <span className="font-bold">IITM BS Resource Hub</span>
+                  <span className="font-bold">DataNest</span>
                 </Link>
                 <Button variant="ghost" size="icon" onClick={closeMenu}>
                   <X className="h-5 w-5" />
@@ -278,6 +297,18 @@ export function Navbar() {
                   <Code className="h-4 w-4" />
                   Projects
                 </Link>
+                {user && (
+                  <Link
+                    href="/bookmarks"
+                    className={`flex items-center gap-2 p-2 rounded-md ${
+                      isActive("/bookmarks") ? "bg-accent" : "hover:bg-accent"
+                    }`}
+                    onClick={closeMenu}
+                  >
+                    <Bookmark className="h-4 w-4" />
+                    Bookmarks
+                  </Link>
+                )}
                 <Link
                   href="/chat"
                   className={`flex items-center gap-2 p-2 rounded-md ${
@@ -345,6 +376,12 @@ export function Navbar() {
                 </div>
                 {user && (
                   <>
+                    <Link href="/bookmarks" onClick={closeMenu}>
+                      <Button variant="outline" size="sm" className="w-full justify-start">
+                        <Bookmark className="mr-2 h-4 w-4" />
+                        Bookmarks
+                      </Button>
+                    </Link>
                     {isAdmin && (
                       <Link href="/admin" onClick={closeMenu}>
                         <Button variant="outline" size="sm" className="w-full justify-start">

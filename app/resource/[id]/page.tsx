@@ -11,7 +11,6 @@ import {
   AlertTriangle,
   ThumbsUp,
   MessageSquare,
-  Edit,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -23,6 +22,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
+import { BookmarkButton } from "@/components/bookmark-button"
 
 interface Resource {
   id: string
@@ -65,16 +65,11 @@ const linkifyText = (text: string | undefined) => {
   // Split the text by URLs
   const parts = text.split(urlRegex)
 
-  // Find all URLs in the text
-  const urls = text.match(urlRegex) || []
-  console.log(parts)
-  console.log(urls)
   // Combine parts and URLs
   const result = []
   for (let i = 0; i < parts.length; i++) {
-    // Add the text part
-     if (urls.includes(parts[i])) {
-      const url = urls[i - Math.floor(i / 2)]
+    if (parts[i].match(urlRegex)) {
+      // This part is a URL
       result.push(
         <a
           key={`link-${i}`}
@@ -86,14 +81,11 @@ const linkifyText = (text: string | undefined) => {
           {parts[i]}
         </a>,
       )
-    }
-  
-    else if (parts[i]) {
+    } else if (parts[i]) {
+      // This part is regular text
       result.push(<span key={`text-${i}`}>{parts[i]}</span>)
     }
-}
-    // Add the URL part (if there is one)
-    
+  }
 
   return result
 }
@@ -657,56 +649,46 @@ export default function ResourcePage({ params }: { params: { id: string } }) {
         </div>
 
         <Card className="overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-sky-50 to-white dark:from-sky-900/50 dark:to-gray-800/50">
-            <div className="flex items-center gap-2 mb-2">
-              {getResourceTypeIcon(resource.type)}
-              <CardTitle>{resource.title}</CardTitle>
-              <Badge variant="outline" className="ml-2">
-                {getResourceTypeLabel(resource.type)}
-              </Badge>
+          <CardHeader className="bg-gradient-to-r from-sky-50 to-white dark:from-sky-900/50 dark:to-gray-800/50 p-6">
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <div className="flex items-center gap-2">
+                {getResourceTypeIcon(resource.type)}
+                <CardTitle className="text-2xl font-bold">{resource.title}</CardTitle>
+                <Badge variant="outline" className="ml-2 font-medium">
+                  {getResourceTypeLabel(resource.type)}
+                </Badge>
+              </div>
+              <BookmarkButton resourceId={resource.id} resourceType="resource" size="md" />
             </div>
             {isResourceCreator && (
               <div className="flex items-center gap-2 mt-2">
-                <Link href={`/resource/edit/${resource.id}`}>
-                  <Button variant="outline" size="sm" className="flex items-center gap-1">
-                    <Edit className="h-3.5 w-3.5" />
-                    Edit
-                  </Button>
-                </Link>
+                <Button variant="outline" size="sm" className="flex items-center gap-1 font-medium">
+                  <span className="mr-2">Edit</span>
+                  <Link href={`/resource/edit/${resource.id}`}>
+                    <span className="text-primary hover:underline">Edit Resource</span>
+                  </Link>
+                </Button>
               </div>
             )}
-            <CardDescription>
+            <CardDescription className="text-base">
               <div className="flex flex-wrap gap-x-4 gap-y-2 mt-1">
-                <span>Shared by {resource.creatorName || "User"}</span>
-                {resource.subjectName && !resource.isGlobal && (
+                <span className="font-medium">Shared by {resource.creatorName || "User"}</span>
+                {resource.subjectName && (
                   <span>
                     Subject:{" "}
-                    <Link href={`/subject/${resource.subjectId}`} className="text-primary hover:underline">
+                    <Link href={`/subject/${resource.subjectId}`} className="text-primary hover:underline font-medium">
                       {resource.subjectName}
                     </Link>
                   </span>
                 )}
-                {resource.week && <span>Week {resource.week}</span>}
-                {resource.isGeneral && <span>General Resource</span>}
-                {resource.isGlobal && <span>Community Resource</span>}
+                {resource.week && <span className="font-medium">Week {resource.week}</span>}
               </div>
             </CardDescription>
-            {resource.flagged && resource.flagReason && (
-              <div className="mt-2 bg-red-50 dark:bg-red-900/20 p-3 rounded-md">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="h-5 w-5 text-red-500 mt-0.5" />
-                  <div>
-                    <h4 className="font-medium text-red-800 dark:text-red-200">This resource has been flagged:</h4>
-                    <p className="text-sm text-red-700 dark:text-red-300">{resource.flagReason}</p>
-                  </div>
-                </div>
-              </div>
-            )}
           </CardHeader>
           <CardContent className="pt-6">
             <div className="mb-6">
-              <h3 className="text-lg font-medium mb-2">Description</h3>
-              <p className="text-muted-foreground">{resource.description}</p>
+              <h3 className="text-lg font-bold mb-2">Description</h3>
+              <p className="text-muted-foreground leading-relaxed">{resource.description}</p>
             </div>
             <div className="mt-6">{renderResourceContent(resource)}</div>
           </CardContent>

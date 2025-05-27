@@ -11,10 +11,10 @@ import {
   deleteDoc,
   collection,
   addDoc,
-  getDocs,
   query,
   orderBy,
   serverTimestamp,
+  onSnapshot,
 } from "firebase/firestore"
 import { auth, db } from "@/app/firebase"
 import { Navbar } from "@/components/navbar"
@@ -59,9 +59,12 @@ export default function ProjectPage({ params }) {
     })
 
     fetchProject()
-    fetchComments()
+    const commentsUnsubscribe = subscribeToComments()
 
-    return () => unsubscribe()
+    return () => {
+      unsubscribe()
+      commentsUnsubscribe && commentsUnsubscribe()
+    }
   }, [id])
 
   const fetchProject = async () => {
@@ -93,23 +96,30 @@ export default function ProjectPage({ params }) {
     }
   }
 
-  const fetchComments = async () => {
+  const subscribeToComments = () => {
     try {
       const commentsRef = collection(db, "projects", id, "comments")
       const q = query(commentsRef, orderBy("createdAt", "desc"))
-      const querySnapshot = await getDocs(q)
 
-      const commentsList = []
-      querySnapshot.forEach((doc) => {
-        commentsList.push({
-          id: doc.id,
-          ...doc.data(),
-        })
-      })
-
-      setComments(commentsList)
+      return onSnapshot(
+        q,
+        (snapshot) => {
+          const commentsList = []
+          snapshot.forEach((doc) => {
+            commentsList.push({
+              id: doc.id,
+              ...doc.data(),
+            })
+          })
+          setComments(commentsList)
+        },
+        (error) => {
+          console.error("Error fetching comments:", error)
+        },
+      )
     } catch (error) {
-      console.error("Error fetching comments:", error)
+      console.error("Error setting up comments subscription:", error)
+      return null
     }
   }
 
@@ -144,13 +154,13 @@ export default function ProjectPage({ params }) {
       } else {
         // Like
         await updateDoc(projectRef, {
-          likes: project.likes + 1,
+          likes: (project.likes || 0) + 1,
           likedBy: arrayUnion(user.uid),
         })
 
         setProject({
           ...project,
-          likes: project.likes + 1,
+          likes: (project.likes || 0) + 1,
           likedBy: [...(project.likedBy || []), user.uid],
         })
       }
@@ -233,37 +243,25 @@ export default function ProjectPage({ params }) {
     try {
       setSubmitting(true)
 
-      // Get user data
-      const userDoc = await getDoc(doc(db, "users", user.uid))
-      const userData = userDoc.exists() ? userDoc.data() : { displayName: user.email.split("@")[0] }
-
-      const commentsRef = collection(db, "projects", id, "comments")
-      const newComment = {
+      // Create the comment data
+      const commentData = {
         content: commentText.trim(),
         createdBy: user.uid,
-        creatorName: userData.displayName || user.displayName || user.email.split("@")[0],
+        creatorName: user.displayName || user.email.split("@")[0],
         creatorEmail: user.email,
-        creatorPhoto: userData.photoURL || user.photoURL || null,
+        creatorPhoto: user.photoURL || null,
         createdAt: serverTimestamp(),
       }
 
-      const docRef = await addDoc(commentsRef, newComment)
+      // Add the comment to Firestore
+      await addDoc(collection(db, "projects", id, "comments"), commentData)
 
-      // Add to local state
-      setComments([
-        {
-          id: docRef.id,
-          ...newComment,
-          createdAt: new Date(), // Temporary date for UI
-        },
-        ...comments,
-      ])
-
+      // Clear the comment text
       setCommentText("")
 
       toast({
         title: "Comment added",
-        description: "Your comment has been posted",
+        description: "Your comment has been posted successfully",
       })
     } catch (error) {
       console.error("Error adding comment:", error)
@@ -282,9 +280,6 @@ export default function ProjectPage({ params }) {
 
     try {
       await deleteDoc(doc(db, "projects", id, "comments", commentId))
-
-      // Update local state
-      setComments(comments.filter((c) => c.id !== commentId))
 
       toast({
         title: "Comment deleted",
@@ -507,7 +502,7 @@ export default function ProjectPage({ params }) {
               ) : (
                 <div className="space-y-4">
                   {comments.map((comment) => (
-                    <Card key={comment.id}>
+                    <Card key={comment.id} className="border border-border hover:border-primary/20 transition-colors">
                       <CardHeader className="pb-2">
                         <div className="flex justify-between items-start">
                           <div className="flex items-center gap-2">
@@ -518,10 +513,8 @@ export default function ProjectPage({ params }) {
                             <div>
                               <p className="font-medium">{comment.creatorName}</p>
                               <p className="text-xs text-muted-foreground">
-                                {comment.createdAt
-                                  ? typeof comment.createdAt.toDate === "function"
-                                    ? new Date(comment.createdAt.toDate()).toLocaleString()
-                                    : new Date(comment.createdAt).toLocaleString()
+                                {comment.createdAt && typeof comment.createdAt.toDate === "function"
+                                  ? new Date(comment.createdAt.toDate()).toLocaleString()
                                   : "Just now"}
                               </p>
                             </div>

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import { getDatabase, ref, onValue, off, push, update } from "firebase/database"
 import { doc, getDoc } from "firebase/firestore"
-import { Bell } from "lucide-react"
+import { Bell, X, MessageSquare, Check, Send } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { db, auth } from "@/app/firebase"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { Badge } from "@/components/ui/badge"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export function FloatingNotificationButton() {
   const [notifications, setNotifications] = useState([])
@@ -374,12 +375,38 @@ export function FloatingNotificationButton() {
     // Handle Firestore timestamp
     if (timestamp.seconds) {
       const date = new Date(timestamp.seconds * 1000)
-      return date.toLocaleString()
+      return formatRelativeTime(date)
     }
 
     // Handle regular JS timestamp
     const date = new Date(timestamp)
-    return date.toLocaleString()
+    return formatRelativeTime(date)
+  }
+
+  const formatRelativeTime = (date) => {
+    const now = new Date()
+    const diffInSeconds = Math.floor((now - date) / 1000)
+
+    if (diffInSeconds < 60) {
+      return "Just now"
+    }
+
+    const diffInMinutes = Math.floor(diffInSeconds / 60)
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} ${diffInMinutes === 1 ? "minute" : "minutes"} ago`
+    }
+
+    const diffInHours = Math.floor(diffInMinutes / 60)
+    if (diffInHours < 24) {
+      return `${diffInHours} ${diffInHours === 1 ? "hour" : "hours"} ago`
+    }
+
+    const diffInDays = Math.floor(diffInHours / 24)
+    if (diffInDays < 7) {
+      return `${diffInDays} ${diffInDays === 1 ? "day" : "days"} ago`
+    }
+
+    return date.toLocaleDateString()
   }
 
   // Fix the getInitials function to handle undefined or empty names
@@ -407,7 +434,7 @@ export function FloatingNotificationButton() {
       >
         <Bell className="h-5 w-5" />
         {unreadCount > 0 && (
-          <Badge className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center p-0">
+          <Badge className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center p-0 animate-pulse">
             {unreadCount}
           </Badge>
         )}
@@ -416,48 +443,56 @@ export function FloatingNotificationButton() {
       <AnimatePresence>
         {showNotifications && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            className="absolute right-0 bottom-16 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-lg border overflow-hidden"
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="absolute right-0 bottom-16 w-80 sm:w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl border overflow-hidden backdrop-blur-sm bg-opacity-95 dark:bg-opacity-90"
           >
-            <div className="p-3 border-b flex items-center justify-between">
-              <h3 className="font-medium">Notifications</h3>
-              <Button variant="ghost" size="sm" onClick={() => setShowNotifications(false)}>
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-                </svg>
-              </Button>
+            <div className="p-4 border-b flex items-center justify-between bg-gradient-to-r from-primary/10 to-transparent">
+              <div className="flex items-center gap-2">
+                <Bell className="h-5 w-5 text-primary" />
+                <h3 className="font-medium">Notifications</h3>
+                {unreadCount > 0 && (
+                  <Badge variant="secondary" className="ml-2">
+                    {unreadCount} new
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                {unreadCount > 0 && (
+                  <Button variant="ghost" size="sm" onClick={markAllAsRead} className="text-xs h-8">
+                    <Check className="h-3.5 w-3.5 mr-1" />
+                    Mark all read
+                  </Button>
+                )}
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setShowNotifications(false)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
 
-            <div className="custom-scrollbar" style={{ maxHeight: "70vh", overflowY: "auto" }}>
+            <ScrollArea className="h-[70vh] max-h-[500px]">
               {loading ? (
-                <div className="p-4 text-center">
-                  <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-2"></div>
+                <div className="p-8 text-center">
+                  <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mx-auto mb-3"></div>
                   <p className="text-sm text-muted-foreground">Loading notifications...</p>
                 </div>
               ) : notifications.length === 0 ? (
-                <div className="p-4 text-center text-muted-foreground">
-                  <div className="flex justify-center mb-2">
-                    <Bell className="h-6 w-6 text-muted-foreground" />
+                <div className="p-8 text-center text-muted-foreground">
+                  <div className="flex justify-center mb-3">
+                    <Bell className="h-8 w-8 text-muted-foreground opacity-40" />
                   </div>
                   <p>No notifications yet</p>
+                  <p className="text-sm mt-1">You'll see notifications here when you receive them</p>
                 </div>
               ) : (
                 <div>
                   {notifications.map((notification) => (
-                    <div key={notification.id} className={`p-3 border-b ${notification.read ? "" : "bg-primary/5"}`}>
+                    <div
+                      key={notification.id}
+                      className={`p-4 border-b hover:bg-muted/30 transition-colors ${notification.read ? "" : "bg-primary/5"}`}
+                    >
                       <div className="flex items-start gap-3">
                         <div className="flex-1 space-y-1">
                           <div className="flex items-start justify-between">
@@ -466,49 +501,24 @@ export function FloatingNotificationButton() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-6 w-6"
+                                className="h-6 w-6 text-primary"
                                 onClick={() => markAsRead(notification.id)}
                               >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="14"
-                                  height="14"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                >
-                                  <polyline points="20 6 9 17 4 12"></polyline>
-                                </svg>
+                                <Check className="h-3.5 w-3.5" />
                               </Button>
                             )}
                           </div>
                           <p className="text-sm text-muted-foreground">{notification.message}</p>
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground mt-1">
                             <span>{formatTimestamp(notification.timestamp)}</span>
                             {notification.allowReply && (
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                className="h-6 px-2 text-xs"
+                                className="h-6 px-2 text-xs hover:bg-primary/10"
                                 onClick={() => toggleReply(notification.id)}
                               >
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="14"
-                                  height="14"
-                                  viewBox="0 0 24 24"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  className="mr-1"
-                                >
-                                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                                </svg>
+                                <MessageSquare className="h-3 w-3 mr-1" />
                                 {replyingTo === notification.id ? "Cancel" : "Reply"}
                               </Button>
                             )}
@@ -517,13 +527,18 @@ export function FloatingNotificationButton() {
                       </div>
 
                       {replyingTo === notification.id && (
-                        <div className="mt-3 ml-11">
-                          <div className="space-y-2">
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-3 ml-0"
+                        >
+                          <div className="space-y-2 bg-muted/30 p-3 rounded-md">
                             <Textarea
                               placeholder="Type your reply..."
                               value={replyContent}
                               onChange={(e) => setReplyContent(e.target.value)}
-                              className="min-h-[80px] text-sm"
+                              className="min-h-[80px] text-sm resize-none"
                             />
                             <div className="flex items-center justify-between">
                               <div className="text-xs text-muted-foreground">
@@ -536,6 +551,7 @@ export function FloatingNotificationButton() {
                                 size="sm"
                                 onClick={() => handleReply(notification.id)}
                                 disabled={!replyContent.trim() || replySending || !validateReplyContent(replyContent)}
+                                className="h-8"
                               >
                                 {replySending ? (
                                   <>
@@ -544,28 +560,14 @@ export function FloatingNotificationButton() {
                                   </>
                                 ) : (
                                   <>
-                                    <svg
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      width="14"
-                                      height="14"
-                                      viewBox="0 0 24 24"
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="2"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      className="mr-1"
-                                    >
-                                      <line x1="22" y1="2" x2="11" y2="13"></line>
-                                      <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                                    </svg>
+                                    <Send className="h-3.5 w-3.5 mr-1" />
                                     Send
                                   </>
                                 )}
                               </Button>
                             </div>
                           </div>
-                        </div>
+                        </motion.div>
                       )}
 
                       {/* View previous replies button */}
@@ -573,57 +575,49 @@ export function FloatingNotificationButton() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-6 px-2 text-xs mt-1"
+                          className="h-7 px-2 text-xs mt-2 hover:bg-muted/50"
                           onClick={() => toggleNotificationExpansion(notification.id)}
                         >
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="14"
-                            height="14"
-                            viewBox="0 0 24 24"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            className="mr-1"
-                          >
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                          </svg>
+                          <MessageSquare className="h-3 w-3 mr-1" />
                           {expandedNotifications[notification.id] ? "Hide Replies" : "View Replies"}
                         </Button>
                       )}
 
                       {/* Replies section */}
                       {expandedNotifications[notification.id] && notificationReplies[notification.id] && (
-                        <div className="mt-2 ml-2 border-l-2 pl-3 border-gray-200 dark:border-gray-700">
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-2 ml-2 border-l-2 pl-3 border-primary/20 dark:border-primary/10"
+                        >
                           {notificationReplies[notification.id].length === 0 ? (
-                            <p className="text-xs text-muted-foreground">No replies yet</p>
+                            <p className="text-xs text-muted-foreground py-2">No replies yet</p>
                           ) : (
                             notificationReplies[notification.id].map((reply) => (
-                              <div key={reply.id} className="mb-2">
+                              <div key={reply.id} className="mb-3 bg-muted/20 p-2 rounded-md">
                                 <div className="flex items-center gap-1 mb-1">
                                   <Avatar className="h-5 w-5">
-                                    <AvatarFallback className="text-[10px]">
+                                    <AvatarFallback className="text-[10px] bg-primary/20">
                                       {getInitials(reply.senderName)}
                                     </AvatarFallback>
                                   </Avatar>
                                   <span className="text-xs font-medium">{reply.senderName}</span>
-                                  <span className="text-xs text-muted-foreground">
+                                  <span className="text-xs text-muted-foreground ml-auto">
                                     {formatTimestamp(reply.timestamp)}
                                   </span>
                                 </div>
-                                <p className="text-xs">{reply.content}</p>
+                                <p className="text-xs whitespace-pre-wrap">{reply.content}</p>
                               </div>
                             ))
                           )}
-                        </div>
+                        </motion.div>
                       )}
                     </div>
                   ))}
                 </div>
               )}
-            </div>
+            </ScrollArea>
           </motion.div>
         )}
       </AnimatePresence>

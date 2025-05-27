@@ -6,99 +6,117 @@ service cloud.firestore {
       return request.auth != null;
     }
     
-    function isAdmin() {
-      return isSignedIn() && 
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
     
-    // Users collection
-    match /users/{userId} {
-      allow read;
-      allow create: if isSignedIn() && request.auth.uid == userId;
-      allow update: if isAdmin() || isOwner(userId);
-      allow delete: if isAdmin();
+    function isAdmin() {
+      return request.auth.token.email == 'admin@iitm.ac.in';
     }
     
-    // Subjects collection
+    function isValidResource() {
+      let requiredFields = ['title', 'description', 'type', 'createdBy', 'subjectId'];
+      return request.resource.data.keys().hasAll(requiredFields);
+    }
+    
+    function isValidComment() {
+      let requiredFields = ['content', 'createdBy', 'resourceId'];
+      return request.resource.data.keys().hasAll(requiredFields);
+    }
+    
+    function isValidProject() {
+      let requiredFields = ['title', 'description', 'createdBy'];
+      return request.resource.data.keys().hasAll(requiredFields);
+    }
+    
+    function isValidBookmark() {
+      let requiredFields = ['userId', 'resourceId', 'resourceType'];
+      return request.resource.data.keys().hasAll(requiredFields) &&
+             request.resource.data.userId == request.auth.uid;
+    }
+    
+    // Public read access for subjects
     match /subjects/{subjectId} {
-      allow read;
-      allow write: if isAdmin();
+      allow read: if true;
+      allow write: if isSignedIn() && isAdmin();
     }
     
-    // Resources collection
+    // Resources can be read by anyone, created by signed-in users, and modified by owners or admins
     match /resources/{resourceId} {
-      allow read;
-      allow create: if isSignedIn();
-      allow update: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.token.email);
-      allow delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.token.email);
+      allow read: if true;
+      allow create: if isSignedIn() && isValidResource();
+      allow update: if isSignedIn() && (isOwner(resource.data.createdBy) || isAdmin());
+      allow delete: if isSignedIn() && (isOwner(resource.data.createdBy) || isAdmin());
     }
     
-    // Comments collection
+    // Comments can be read by anyone, created by signed-in users, and modified by owners or admins
     match /comments/{commentId} {
-      allow read;
-      allow create: if isSignedIn();
-      allow update, delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.token.email);
+      allow read: if true;
+      allow create: if isSignedIn() && isValidComment();
+      allow update, delete: if isSignedIn() && (isOwner(resource.data.createdBy) || isAdmin());
     }
     
-    // Chat messages
-    match /chats/{chatId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && 
-        ((resource.data.sender == request.auth.token.email) || isAdmin());
+    // User profiles can be read by anyone, but only modified by the owner or admin
+    match /users/{userId} {
+      allow read: if true;
+      allow write: if isSignedIn() && (isOwner(userId) || isAdmin());
     }
     
-    // Chat rooms
-    match /chatRooms/{roomId} {
-      allow read: if isSignedIn();
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && 
-        (resource.data.createdBy == request.auth.token.email || 
-         isAdmin() || 
-         request.auth.token.email in resource.data.participants);
-      allow delete: if isSigne  || 
-         request.auth.token.email in resource.data.participants);
-      allow delete: if isSignedIn() && 
-        (resource.data.createdBy == request.auth.token.email || isAdmin());
+    // Bookmarks are private to the user who created them
+    match /bookmarks/{bookmarkId} {
+      allow read: if isSignedIn() && isOwner(resource.data.userId);
+      allow create: if isSignedIn() && isValidBookmark();
+      allow update, delete: if isSignedIn() && isOwner(resource.data.userId);
     }
     
-    // Projects collection
-    match /projects/{projectId} {
-      allow read; // Allow anyone to read projects
-      allow create: if isSignedIn(); // Only signed-in users can create
-      allow update: if isSignedIn() && 
-        (request.auth.uid == resource.data.createdBy || isAdmin());
-      allow delete: if isSignedIn() && 
-        (request.auth.uid == resource.data.createdBy || isAdmin());
-    }
-    
-    // Study sessions collection
+    // Study sessions are private to the user who created them
     match /studySessions/{sessionId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.token.email;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.token.email;
-      allow update: if isSignedIn() && resource.data.userId == request.auth.token.email;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.token.email;
+      allow read: if isSignedIn() && isOwner(resource.data.userId);
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isSignedIn() && isOwner(resource.data.userId);
     }
     
-    // Tasks collection
-    match /tasks/{taskId} {
-      allow read: if isSignedIn() && resource.data.userId == request.auth.token.email;
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.token.email;
-      allow update: if isSignedIn() && resource.data.userId == request.auth.token.email;
-      allow delete: if isSignedIn() && resource.data.userId == request.auth.token.email;
+    // Projects can be read by anyone, created by signed-in users, and modified by owners or admins
+    match /projects/{projectId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidProject();
+      allow update, delete: if isSignedIn() && (isOwner(resource.data.createdBy) || isAdmin());
+      
+      // Project comments
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn();
+        allow update, delete: if isSignedIn() && (isOwner(resource.data.createdBy) || isAdmin());
+      }
     }
     
-    // Water tracking collection
-    match /waterTracking/{userId} {
-      allow read: if isSignedIn() && userId == request.auth.token.email;
-      allow create: if isSignedIn() && userId == request.auth.token.email;
-      allow update: if isSignedIn() && userId == request.auth.token.email;
-      allow delete: if isSignedIn() && userId == request.auth.token.email;
+    // Notifications are private to the user they're intended for
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && isOwner(resource.data.userId);
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && isOwner(resource.data.userId);
+      allow delete: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
+    }
+    
+    // Leaderboard data - read-only for users, write access for admins
+    match /leaderboard/{userId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn() && isAdmin();
+    }
+    
+    // Admin-only collections
+    match /adminSettings/{settingId} {
+      allow read, write: if isSignedIn() && isAdmin();
+    }
+    
+    match /reports/{reportId} {
+      allow read, write: if isSignedIn() && isAdmin();
+      allow create: if isSignedIn(); // Users can create reports
+    }
+    
+    // Analytics data - admin only
+    match /analytics/{docId} {
+      allow read, write: if isSignedIn() && isAdmin();
     }
   }
 }
