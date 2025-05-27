@@ -102,7 +102,7 @@ export function Navbar() {
       <div className="container flex h-16 items-center">
         <div className="mr-4 flex">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <span className="hidden font-bold sm:inline-block">IITM BS Resource Hub</span>
+            <span className="hidden font-bold sm:inline-block">DataNest</span>
           </Link>
           <Button variant="outline" size="icon" className="md:hidden" onClick={toggleMenu}>
             <Menu className="h-5 w-5" />
