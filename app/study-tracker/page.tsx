@@ -5,13 +5,16 @@ import { useAuthState } from "react-firebase-hooks/auth"
 import { auth, db } from "@/lib/firebase"
 import { doc, setDoc, getDoc, collection, query, where, getDocs, orderBy, limit } from "firebase/firestore"
 import { StudyTimer } from "@/components/study-timer"
+import { SimplePomodoroTimer } from "@/components/simple-pomodoro-timer"
+import { FloatingPomodoroTimer } from "@/components/floating-pomodoro-timer"
 import { TaskManager } from "@/components/task-manager"
 import { WaterTracker } from "@/components/water-tracker"
 import { StudyVisualizer } from "@/components/study-visualizer"
 import { useToast } from "@/components/ui/use-toast"
-import { Loader2 } from "lucide-react"
+import { Loader2, Clock, Timer } from "lucide-react"
 import { Navbar } from "@/components/navbar"
-import Image from 'next/image'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { AnimatePresence } from "framer-motion"
 
 export default function StudyTrackerPage() {
   const [user] = useAuthState(auth)
@@ -19,6 +22,7 @@ export default function StudyTrackerPage() {
   const [studyData, setStudyData] = useState<any>([])
   const [waterData, setWaterData] = useState<any>(null)
   const [taskData, setTaskData] = useState<any>([])
+  const [showFloatingPomodoro, setShowFloatingPomodoro] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -80,12 +84,13 @@ export default function StudyTrackerPage() {
     loadData()
   }, [user, toast])
 
-  const saveStudySession = async (duration: number, isComplete = false) => {
+  const saveStudySession = async (duration: number, isComplete = false, type: "work" | "break" | "study" = "study") => {
     const session = {
       userId: user?.email || "anonymous",
       duration,
       date: new Date().toISOString(),
       isComplete,
+      type,
     }
 
     if (user) {
@@ -166,84 +171,115 @@ export default function StudyTrackerPage() {
       </div>
     )
   }
-  
+
   return (
-  <div className="h-full">
-  <div
-  style={{
-      backgroundImage: `url(https://cdn.pixabay.com/photo/2018/07/26/12/21/sunset-3563482_1280.jpg)`,
-      width: '100%',
-      height: '100%',
-      objectFit : 'contain',
-      backgroundSize : 'cover',
-      position : 'fixed',
-      zIndex : '-1'
-    }}>
-</div>
-    <div className=" ">
-      <Navbar />
-     <div className="container mx-auto px-4 py-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-3xl font-bold text-indigo-800 dark:text-indigo-300">Study Tracker</h1>
-          {!user && (
-            <div className="bg-amber-50 border border-amber-200 dark:bg-amber-900/30 dark:border-amber-700/50 p-2 rounded-lg">
-              <span className="text-amber-800 dark:text-amber-300 text-sm">
-                Guest mode.{" "}
-                <a href="/login" className="underline font-medium">
-                  Sign in
-                </a>{" "}
-                to sync data.
-              </span>
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[calc(95vh-120px)]">
-          {/* Left column - Timer and Tasks */}
-          <div className="space-y-6">
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden h-[calc(50%-12px)]">
-              <div className="bg-cyan-600 dark:bg-cyan-700 px-4 py-3">
-                <h2 className="text-lg font-semibold text-white">Study Timer</h2>
+    <div className="h-full">
+      <div
+        style={{
+          backgroundImage: `url(https://cdn.pixabay.com/photo/2018/07/26/12/21/sunset-3563482_1280.jpg)`,
+          width: "100%",
+          height: "100%",
+          objectFit: "contain",
+          backgroundSize: "cover",
+          position: "fixed",
+          zIndex: "-1",
+        }}
+      ></div>
+      <div className="">
+        <Navbar />
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-3xl font-bold text-indigo-800 dark:text-indigo-300">Study Tracker</h1>
+            {!user && (
+              <div className="bg-amber-50 border border-amber-200 dark:bg-amber-900/30 dark:border-amber-700/50 p-2 rounded-lg">
+                <span className="text-amber-800 dark:text-amber-300 text-sm">
+                  Guest mode.{" "}
+                  <a href="/login" className="underline font-medium">
+                    Sign in
+                  </a>{" "}
+                  to sync data.
+                </span>
               </div>
-              <div className="p-4 h-[calc(100%-52px)] overflow-hidden">
-                <StudyTimer onSessionComplete={saveStudySession} />
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden h-[calc(50%-12px)]">
-              <div className="bg-cyan-600 dark:bg-cyan-700 px-4 py-3">
-                <h2 className="text-lg font-semibold text-white">Study Activity</h2>
-              </div>
-              <div className="p-4 h-[calc(100%-52px)] overflow-hidden" id="study">
-                <StudyVisualizer studyData={studyData} />
-              </div>
-            </div>
+            )}
           </div>
 
-          {/* Right column - Visualizer and Water */}
-          <div className="space-y-6">
-            
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden h-[calc(50%-12px)]">
-              <div className="bg-cyan-600 dark:bg-cyan-700 px-4 py-3">
-                <h2 className="text-lg font-semibold text-white">Task Manager</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[calc(95vh-120px)]">
+            {/* Left column - Timers and Tasks */}
+            <div className="space-y-6">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden h-[calc(50%-12px)]">
+                <div className="bg-cyan-600 dark:bg-cyan-700 px-4 py-3">
+                  <h2 className="text-lg font-semibold text-white">Study Timers</h2>
+                </div>
+                <div className="p-4 h-[calc(100%-52px)] overflow-hidden">
+                  <Tabs defaultValue="regular" className="h-full">
+                    <TabsList className="grid w-full grid-cols-2 mb-4">
+                      <TabsTrigger value="regular" className="flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Regular Timer
+                      </TabsTrigger>
+                      <TabsTrigger value="pomodoro" className="flex items-center gap-2">
+                        <Timer className="h-4 w-4" />
+                        Pomodoro
+                      </TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="regular" className="h-[calc(100%-60px)]">
+                      <StudyTimer
+                        onSessionComplete={(duration, isComplete) => saveStudySession(duration, isComplete, "study")}
+                      />
+                    </TabsContent>
+                    <TabsContent value="pomodoro" className="h-[calc(100%-60px)]">
+                      <SimplePomodoroTimer
+                        onSessionComplete={(duration, type) => saveStudySession(duration, true, type)}
+                        onExpand={() => setShowFloatingPomodoro(true)}
+                      />
+                    </TabsContent>
+                  </Tabs>
+                </div>
               </div>
-              <div className="p-4 h-[50vh] overflow-y-scroll">
-                <TaskManager initialTasks={taskData} onTasksUpdate={updateTaskData} isAuthenticated={!!user} />
+
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden h-[calc(50%-12px)]">
+                <div className="bg-cyan-600 dark:bg-cyan-700 px-4 py-3">
+                  <h2 className="text-lg font-semibold text-white">Study Activity</h2>
+                </div>
+                <div className="p-4 h-[calc(100%-52px)] overflow-hidden">
+                  <StudyVisualizer studyData={studyData} />
+                </div>
               </div>
             </div>
 
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden h-[calc(50%-12px)]">
-              <div className="bg-cyan-600 dark:bg-cyan-700 px-4 py-3">
-                <h2 className="text-lg font-semibold text-white">Water Consumption</h2>
+            {/* Right column - Tasks and Water */}
+            <div className="space-y-6">
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden h-[calc(50%-12px)]">
+                <div className="bg-cyan-600 dark:bg-cyan-700 px-4 py-3">
+                  <h2 className="text-lg font-semibold text-white">Task Manager</h2>
+                </div>
+                <div className="p-4 h-[50vh] overflow-y-scroll">
+                  <TaskManager initialTasks={taskData} onTasksUpdate={updateTaskData} isAuthenticated={!!user} />
+                </div>
               </div>
-              <div className="p-4 h-[calc(100%-52px)] overflow-hidden">
-                <WaterTracker initialData={waterData} onDataUpdate={updateWaterData} />
+
+              <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden h-[calc(50%-12px)]">
+                <div className="bg-cyan-600 dark:bg-cyan-700 px-4 py-3">
+                  <h2 className="text-lg font-semibold text-white">Water Consumption</h2>
+                </div>
+                <div className="p-4 h-[calc(100%-52px)] overflow-hidden">
+                  <WaterTracker initialData={waterData} onDataUpdate={updateWaterData} />
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Floating Pomodoro Timer */}
+      <AnimatePresence>
+        {showFloatingPomodoro && (
+          <FloatingPomodoroTimer
+            onClose={() => setShowFloatingPomodoro(false)}
+            onSessionComplete={(duration, type) => saveStudySession(duration, true, type)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

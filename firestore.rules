@@ -10,17 +10,21 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
     
+    function isOwnerByEmail(userEmail) {
+      return request.auth.token.email == userEmail;
+    }
+    
     function isAdmin() {
       return request.auth.token.email == 'admin@iitm.ac.in';
     }
     
     function isValidResource() {
-      let requiredFields = ['title', 'description', 'type', 'createdBy', 'subjectId'];
+      let requiredFields = ['title', 'description', 'type', 'createdBy'];
       return request.resource.data.keys().hasAll(requiredFields);
     }
     
     function isValidComment() {
-      let requiredFields = ['content', 'createdBy', 'resourceId'];
+      let requiredFields = ['content', 'createdBy'];
       return request.resource.data.keys().hasAll(requiredFields);
     }
     
@@ -35,87 +39,156 @@ service cloud.firestore {
              request.resource.data.userId == request.auth.uid;
     }
     
+    function isValidChatMessage() {
+      let requiredFields = ['content', 'sender', 'timestamp'];
+      return request.resource.data.keys().hasAll(requiredFields) &&
+             request.resource.data.sender == request.auth.token.email;
+    }
+    
+    function isValidStudySession() {
+      let requiredFields = ['userId', 'duration', 'date'];
+      return request.resource.data.keys().hasAll(requiredFields) &&
+             request.resource.data.userId == request.auth.token.email;
+    }
+    
+    function isValidTask() {
+      let requiredFields = ['userId', 'title', 'completed'];
+      return request.resource.data.keys().hasAll(requiredFields) &&
+             request.resource.data.userId == request.auth.token.email;
+    }
+
+    function isValidPomodoroSession() {
+      let requiredFields = ['userId', 'type', 'duration'];
+      return request.resource.data.keys().hasAll(requiredFields) &&
+             request.resource.data.userId == request.auth.token.email;
+    }
+
     // Public read access for subjects
     match /subjects/{subjectId} {
       allow read: if true;
       allow write: if isSignedIn() && isAdmin();
     }
     
-    // Resources can be read by anyone, created by signed-in users, and modified by owners or admins
+    // Resources - allow all reads, authenticated writes with ownership checks
     match /resources/{resourceId} {
       allow read: if true;
       allow create: if isSignedIn() && isValidResource();
-      allow update: if isSignedIn() && (isOwner(resource.data.createdBy) || isAdmin());
-      allow delete: if isSignedIn() && (isOwner(resource.data.createdBy) || isAdmin());
+      allow update: if isSignedIn() && (isOwnerByEmail(resource.data.createdBy) || isAdmin());
+      allow delete: if isSignedIn() && (isOwnerByEmail(resource.data.createdBy) || isAdmin());
     }
     
-    // Comments can be read by anyone, created by signed-in users, and modified by owners or admins
+    // Comments - allow all reads, authenticated writes with ownership checks
     match /comments/{commentId} {
       allow read: if true;
       allow create: if isSignedIn() && isValidComment();
-      allow update, delete: if isSignedIn() && (isOwner(resource.data.createdBy) || isAdmin());
+      allow update, delete: if isSignedIn() && (isOwnerByEmail(resource.data.createdBy) || isAdmin());
     }
     
-    // User profiles can be read by anyone, but only modified by the owner or admin
+    // User profiles - public read, owner/admin write
     match /users/{userId} {
       allow read: if true;
       allow write: if isSignedIn() && (isOwner(userId) || isAdmin());
     }
     
-    // Bookmarks are private to the user who created them
+    // Bookmarks - private to user
     match /bookmarks/{bookmarkId} {
       allow read: if isSignedIn() && isOwner(resource.data.userId);
       allow create: if isSignedIn() && isValidBookmark();
       allow update, delete: if isSignedIn() && isOwner(resource.data.userId);
     }
     
-    // Study sessions are private to the user who created them
+    // Study sessions - private to user
     match /studySessions/{sessionId} {
-      allow read: if isSignedIn() && isOwner(resource.data.userId);
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-      allow update, delete: if isSignedIn() && isOwner(resource.data.userId);
+      allow read: if isSignedIn() && isOwnerByEmail(resource.data.userId);
+      allow create: if isSignedIn() && isValidStudySession();
+      allow update, delete: if isSignedIn() && isOwnerByEmail(resource.data.userId);
     }
     
-    // Projects can be read by anyone, created by signed-in users, and modified by owners or admins
+    // Pomodoro sessions - private to user
+    match /pomodoroSessions/{sessionId} {
+      allow read: if isSignedIn() && isOwnerByEmail(resource.data.userId);
+      allow create: if isSignedIn() && isValidPomodoroSession();
+      allow update, delete: if isSignedIn() && isOwnerByEmail(resource.data.userId);
+    }
+    
+    // Water tracking - private to user
+    match /waterTracking/{userId} {
+      allow read, write: if isSignedIn() && isOwnerByEmail(userId);
+    }
+    
+    // Tasks - private to user
+    match /tasks/{taskId} {
+      allow read: if isSignedIn() && isOwnerByEmail(resource.data.userId);
+      allow create: if isSignedIn() && isValidTask();
+      allow update, delete: if isSignedIn() && isOwnerByEmail(resource.data.userId);
+    }
+    
+    // Projects - public read, authenticated write with ownership
     match /projects/{projectId} {
       allow read: if true;
       allow create: if isSignedIn() && isValidProject();
-      allow update, delete: if isSignedIn() && (isOwner(resource.data.createdBy) || isAdmin());
+      allow update, delete: if isSignedIn() && (isOwnerByEmail(resource.data.createdBy) || isAdmin());
       
       // Project comments
       match /comments/{commentId} {
         allow read: if true;
-        allow create: if isSignedIn();
-        allow update, delete: if isSignedIn() && (isOwner(resource.data.createdBy) || isAdmin());
+        allow create: if isSignedIn() && isValidComment();
+        allow update, delete: if isSignedIn() && (isOwnerByEmail(resource.data.createdBy) || isAdmin());
       }
     }
     
-    // Notifications are private to the user they're intended for
-    match /notifications/{notificationId} {
-      allow read: if isSignedIn() && isOwner(resource.data.userId);
-      allow create: if isSignedIn();
-      allow update: if isSignedIn() && isOwner(resource.data.userId);
-      allow delete: if isSignedIn() && (isOwner(resource.data.userId) || isAdmin());
+    // Chat messages - authenticated users can read all, create/edit own
+    match /chats/{messageId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidChatMessage();
+      allow update, delete: if isSignedIn() && (isOwnerByEmail(resource.data.sender) || isAdmin());
     }
     
-    // Leaderboard data - read-only for users, write access for admins
+    // Chat rooms - authenticated users can read, participate if member
+    match /chatRooms/{roomId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && (
+        isOwnerByEmail(resource.data.createdBy) || 
+        request.auth.token.email in resource.data.participants ||
+        isAdmin()
+      );
+      allow delete: if isSignedIn() && (isOwnerByEmail(resource.data.createdBy) || isAdmin());
+    }
+    
+    // Notifications - private to user
+    match /notifications/{notificationId} {
+      allow read: if isSignedIn() && isOwnerByEmail(resource.data.userId);
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && isOwnerByEmail(resource.data.userId);
+      allow delete: if isSignedIn() && (isOwnerByEmail(resource.data.userId) || isAdmin());
+    }
+    
+    // Leaderboard - read for all authenticated, write for admin
     match /leaderboard/{userId} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() && isAdmin();
     }
     
-    // Admin-only collections
+    // Admin collections
     match /adminSettings/{settingId} {
       allow read, write: if isSignedIn() && isAdmin();
     }
     
     match /reports/{reportId} {
       allow read, write: if isSignedIn() && isAdmin();
-      allow create: if isSignedIn(); // Users can create reports
+      allow create: if isSignedIn();
     }
     
-    // Analytics data - admin only
     match /analytics/{docId} {
+      allow read, write: if isSignedIn() && isAdmin();
+    }
+    
+    match /emailLogs/{logId} {
+      allow read, write: if isSignedIn() && isAdmin();
+    }
+    
+    match /systemLogs/{logId} {
       allow read, write: if isSignedIn() && isAdmin();
     }
   }

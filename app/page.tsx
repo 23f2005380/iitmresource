@@ -214,7 +214,7 @@ export default function Home() {
     <Link href={`/subject/${subject.id}`} key={subject.id}>
       <Card className="hover:shadow-lg transition-all duration-300 hover:scale-[1.02] h-full flex flex-col group">
         <CardHeader className="bg-gradient-to-br from-primary/90 to-primary text-white py-6 px-6">
-          <CardTitle className="text-xl font-bold text-white group-hover:text-primary-foreground transition-colors">
+          <CardTitle className="text-xl text-white group-hover:text-primary-foreground transition-colors" style={{"fontWeight"  : 400}}>
             {subject.name}
           </CardTitle>
           <CardDescription className="text-primary-foreground/90 font-medium">

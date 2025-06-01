@@ -3,9 +3,10 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState, useEffect } from "react"
-import { Menu, X, Home, BookOpen, Users, Award, LogOut, FileText, Code, Shield, Bookmark } from "lucide-react"
+import { Menu, X, Home, BookOpen, Users, LogOut, FileText, Code, Shield, Bookmark } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ThemeSwitcher } from "@/components/theme-switcher"
+import { GlobalSearch } from "@/components/global-search"
 import { auth, db } from "@/app/firebase"
 import { signOut } from "firebase/auth"
 import { useRouter } from "next/navigation"
@@ -109,6 +110,8 @@ export function Navbar() {
             <span className="sr-only">Toggle menu</span>
           </Button>
         </div>
+
+        {/* Desktop Navigation */}
         <div className="hidden md:flex md:flex-1 md:items-center md:justify-between">
           <nav className="flex items-center justify-center space-x-1">
             <Link
@@ -130,7 +133,7 @@ export function Navbar() {
             >
               <span className="flex items-center gap-1">
                 <FileText className="h-4 w-4" />
-                All Resources
+                Resources
               </span>
             </Link>
             <Link
@@ -169,17 +172,6 @@ export function Navbar() {
               </span>
             </Link>
             <Link
-              href="/leaderboard"
-              className={`px-3 py-2 text-sm font-medium transition-colors hover:text-primary ${
-                isActive("/leaderboard") ? "text-primary" : "text-muted-foreground"
-              }`}
-            >
-              <span className="flex items-center gap-1">
-                <Award className="h-4 w-4" />
-                Leaderboard
-              </span>
-            </Link>
-            <Link
               href="/study-tracker"
               className={`px-3 py-2 text-sm font-medium transition-colors hover:text-primary ${
                 isActive("/study-tracker") ? "text-primary" : "text-muted-foreground"
@@ -187,7 +179,7 @@ export function Navbar() {
             >
               <span className="flex items-center gap-1">
                 <BookOpen className="h-4 w-4" />
-                Study Tracker
+                Study
               </span>
             </Link>
             {isAdmin && (
@@ -199,12 +191,14 @@ export function Navbar() {
               >
                 <span className="flex items-center gap-1">
                   <Shield className="h-4 w-4" />
-                  Admin Dashboard
+                  Admin
                 </span>
               </Link>
             )}
           </nav>
-          <div className="flex items-center space-x-2">
+
+          <div className="flex items-center space-x-4">
+            <GlobalSearch />
             <ThemeSwitcher />
             {user ? (
               <DropdownMenu>
@@ -254,6 +248,8 @@ export function Navbar() {
             )}
           </div>
         </div>
+
+        {/* Mobile Menu */}
         {isMenuOpen && (
           <div className="fixed inset-0 top-16 z-50 grid h-[calc(100vh-4rem)] grid-flow-row auto-rows-max overflow-auto p-6 pb-32 shadow-md animate-in md:hidden">
             <div className="relative z-20 grid gap-6 rounded-md bg-popover p-4 text-popover-foreground shadow-md">
@@ -266,6 +262,11 @@ export function Navbar() {
                   <span className="sr-only">Close menu</span>
                 </Button>
               </div>
+
+              <div className="mb-4">
+                <GlobalSearch />
+              </div>
+
               <nav className="grid grid-flow-row auto-rows-max text-sm">
                 <Link
                   href="/"
@@ -285,7 +286,7 @@ export function Navbar() {
                   onClick={closeMenu}
                 >
                   <FileText className="h-4 w-4" />
-                  All Resources
+                  Resources
                 </Link>
                 <Link
                   href="/projects"
@@ -320,16 +321,6 @@ export function Navbar() {
                   Chat
                 </Link>
                 <Link
-                  href="/leaderboard"
-                  className={`flex items-center gap-2 p-2 rounded-md ${
-                    isActive("/leaderboard") ? "bg-accent" : "hover:bg-accent"
-                  }`}
-                  onClick={closeMenu}
-                >
-                  <Award className="h-4 w-4" />
-                  Leaderboard
-                </Link>
-                <Link
                   href="/study-tracker"
                   className={`flex items-center gap-2 p-2 rounded-md ${
                     isActive("/study-tracker") ? "bg-accent" : "hover:bg-accent"
@@ -348,10 +339,11 @@ export function Navbar() {
                     onClick={closeMenu}
                   >
                     <Shield className="h-4 w-4" />
-                    Admin Dashboard
+                    Admin
                   </Link>
                 )}
               </nav>
+
               <div className="flex flex-col space-y-2">
                 <div className="flex items-center justify-between">
                   <ThemeSwitcher />
